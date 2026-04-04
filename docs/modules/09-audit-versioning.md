@@ -118,78 +118,141 @@ Every audit event captures a structured snapshot — not just a description:
 When a single user action triggers multiple audit events (e.g., saving a record changes 5 fields), all events share the same `correlation_id`. This allows the audit log viewer to group and collapse related changes:
 
 ```java
-// AuditContext thread-local
-@Component
-public class AuditContext {
-    private static final ThreadLocal<UUID> correlationId = new ThreadLocal<>();
+// AuditContext — uses ScopedValue, not ThreadLocal (virtual thread-safe)
+public final class AuditContext {
+    public static final ScopedValue<UUID> CORRELATION_ID = ScopedValue.newInstance();
 
-    public static UUID begin() {
-        UUID id = UUID.randomUUID();
-        correlationId.set(id);
-        return id;
+    public static <T> T withNewCorrelation(Callable<T> task) throws Exception {
+        return ScopedValue.where(CORRELATION_ID, UUID.randomUUID()).call(task);
     }
+
+    public static UUID current() {
+        return CORRELATION_ID.isBound() ? CORRELATION_ID.get() : null;
+    }
+}
 
     public static UUID current() { return correlationId.get(); }
     public static void clear()   { correlationId.remove(); }
 }
 ```
 
-### 2.5 Tamper Evidence — Hash Chaining (Deadlock-Safe Design)
+### 2.5 Tamper Evidence — Synchronous Hash Chain (Deadlock-Safe)
 
-Every audit log row is tamper-evident via SHA-256 hash chaining. **Critical constraint:** hash computation must **not** happen synchronously within the primary transaction, because reading the previous row's hash while the previous write is still in progress causes deadlocks under concurrency.
+Every audit log row is tamper-evident via SHA-256 hash chaining. The chain must be computed **synchronously** within the same transaction as the mutation — an async worker creates a 1-second window where an adversary with direct DB access could alter an uncommitted row before the hash is computed (DeepSeek critical finding).
 
-**Two-phase design:**
+**Why this does NOT cause deadlocks (Gemini concern addressed):**
 
-**Phase 1 (Synchronous, same transaction):** The audit log row is inserted with `chain_hash = NULL`. The row is committed with the triggering action.
-
-**Phase 2 (Asynchronous, separate process):** A background `HashChainWorker` processes unlinked rows in strict `event_time` + `id` order, computes the SHA-256 chain, and updates the `chain_hash` column.
+The deadlock risk arises when hashing requires reading the previous row's hash while that row's transaction is still open. The design avoids this by:
+1. Using a `CREATE SEQUENCE` (monotonic, gap-tolerant) as the ordering key — not the previous row
+2. The hash chains `SHA256(prevHash + eventData)` where `prevHash` is the atomically held in-memory `lastHash`
+3. A **per-org synchronized block** serializes hash computation — only one thread computes a hash for a given org at a time
+4. The in-memory `lastHash` is updated **only after the commit** (via `TransactionSynchronizationManager.afterCommit`)
+5. Rollback is safe: if the transaction rolls back, `lastHash` is never updated, so the next transaction starts from the same previous hash
 
 ```sql
--- Audit log column update: chain_hash can initially be NULL
-ALTER TABLE audit_log ADD chain_hash NCHAR(64) NULL;  -- NULL until background worker processes
+CREATE SEQUENCE audit_event_seq AS BIGINT START WITH 1 INCREMENT BY 1;
 
--- Separate hash chain table (for batch-level verification)
-CREATE TABLE audit_chain_hashes (
-    batch_id        BIGINT           NOT NULL PRIMARY KEY IDENTITY,
-    org_id          UNIQUEIDENTIFIER NOT NULL,
-    batch_start_id  UNIQUEIDENTIFIER NOT NULL,
-    batch_end_id    UNIQUEIDENTIFIER NOT NULL,
-    row_count       INT              NOT NULL,
-    chain_hash      NCHAR(64)        NOT NULL,  -- SHA-256 of batch rows + previous hash
-    prev_hash       NCHAR(64)        NULL,       -- NULL for first batch
-    created_at      DATETIME2        NOT NULL DEFAULT SYSUTCDATETIME()
-);
+CREATE TABLE audit_log (
+    event_seq       BIGINT            NOT NULL DEFAULT NEXT VALUE FOR audit_event_seq,
+    id              UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWSEQUENTIALID(),
+    org_id          UNIQUEIDENTIFIER  NOT NULL,
+    event_time      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
+    user_id         UNIQUEIDENTIFIER  NULL,
+    entity_type     NVARCHAR(100)     NOT NULL,
+    entity_id       UNIQUEIDENTIFIER  NOT NULL,
+    action          NVARCHAR(50)      NOT NULL,
+    old_value       NVARCHAR(MAX)     NULL,
+    new_value       NVARCHAR(MAX)     NULL,
+    ip_address      NVARCHAR(45)      NULL,
+    session_id      NVARCHAR(200)     NULL,
+    correlation_id  UNIQUEIDENTIFIER  NULL,
+    chain_hash      NCHAR(64)         NOT NULL,  -- NEVER NULL: computed synchronously
+    rule_trace      NVARCHAR(MAX)     NULL,       -- JSON: rule evaluation trace for computed fields
+    PRIMARY KEY (event_seq, event_time)
+) ON [AuditPartitionScheme];
 ```
 
-**Hash Chain Worker (deadlock-free):**
+**AuditService — synchronous, per-org serialized hash:**
+
 ```java
 @Component
-public class HashChainWorker {
-    // Processes batches of unhashed audit rows in strict order
-    // Uses row-level locking (SELECT ... WITH (UPDLOCK, READPAST)) to handle concurrency:
-    // - Never reads the "to-be-written" hash of a pending row
-    // - Processes only rows where chain_hash IS NULL, ordered by event_time ASC, id ASC
-    // - Writes hash chain updates in a separate, independent transaction
-    @Scheduled(fixedDelay = 1000)  // runs every second
-    public void processUnlinkedRows() {
-        List<AuditLogEntry> unlinked = auditLogRepository
-            .findUnlinkedBatch(BATCH_SIZE); // SELECT TOP 500 WHERE chain_hash IS NULL ORDER BY event_time, id
-        if (unlinked.isEmpty()) return;
+public class AuditService {
 
-        String prevHash = auditLogRepository.getLastChainHash(unlinked.get(0).getOrgId());
-        for (AuditLogEntry entry : unlinked) {
-            String rowData = toCanonicalJson(entry);
-            String hash = sha256(prevHash + rowData);
-            auditLogRepository.updateChainHash(entry.getId(), hash);
-            prevHash = hash;
+    // One lock object per org. ConcurrentHashMap ensures thread safety.
+    private final ConcurrentHashMap<UUID, Object> orgLocks = new ConcurrentHashMap<>();
+    // Last known chain hash per org. Loaded from DB on startup.
+    private final ConcurrentHashMap<UUID, String> lastHashes = new ConcurrentHashMap<>();
+
+    @PostConstruct
+    public void loadLastHashes() {
+        auditRepository.findLastHashPerOrg().forEach(row ->
+            lastHashes.put(row.orgId(), row.chainHash()));
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)  // must be called within an existing tx
+    public void log(AuditEvent event) {
+        Object lock = orgLocks.computeIfAbsent(event.orgId(), id -> new Object());
+
+        synchronized (lock) {
+            String prevHash = lastHashes.getOrDefault(event.orgId(), "GENESIS");
+            String rowData  = toCanonicalJson(event);
+            String newHash  = sha256Hex(prevHash + rowData);
+
+            // Insert with the computed hash in the same transaction
+            long seq = auditRepository.insert(event, newHash);
+
+            // Update in-memory state ONLY after commit — if tx rolls back, lastHash is unchanged
+            String captured = newHash;
+            TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronizationAdapter() {
+                    @Override public void afterCommit() {
+                        lastHashes.put(event.orgId(), captured);
+                    }
+                });
         }
+    }
+
+    private String toCanonicalJson(AuditEvent event) {
+        // Deterministic serialization: sorted keys, no whitespace, no nulls
+        return canonicalMapper.writeValueAsString(Map.of(
+            "seq",       event.eventSeq(),
+            "orgId",     event.orgId(),
+            "entityId",  event.entityId(),
+            "action",    event.action(),
+            "newValue",  event.newValue() != null ? event.newValue() : ""
+        ));
+    }
+
+    private String sha256Hex(String input) {
+        byte[] hash = MessageDigest.getInstance("SHA-256").digest(input.getBytes(UTF_8));
+        return HexFormat.of().formatHex(hash);
     }
 }
 ```
 
-**Compliance note:** The < 1 second window where `chain_hash IS NULL` is acceptable — an audit row with no hash is detectable by a chain verifier as an unprocessed row, not a tampered row. The immutable `id`, `event_time`, and `new_value` columns are already committed and cannot be altered.
+**Concurrency safety under high load:**
+- The `synchronized (lock)` block is per-org, not global. Different orgs compute hashes concurrently without contention.
+- Within a single org, hash computation is serialized. For a single bank with ~10K users, this is acceptable — GRC write concurrency is far lower than financial transaction systems.
+- Chain inserts are single `INSERT` statements (fast). The critical section holds the lock for < 1 ms under normal conditions.
 
-A background job runs daily to verify chain integrity and alerts if tampering is detected.
+**Chain verification (daily job):**
+```java
+@Scheduled(cron = "0 2 * * *")  // 2 AM nightly
+public void verifyAuditChain() {
+    // Walk chain for last 24 hours; recompute each hash; alert if any mismatch
+    auditRepository.streamRecentEntries(24).forEach(entry -> {
+        String expected = sha256Hex(prev + toCanonicalJson(entry));
+        if (!expected.equals(entry.chainHash())) {
+            alertService.sendTamperAlert(entry);
+        }
+        prev = entry.chainHash();
+    });
+}
+```
+
+**On application restart:** `loadLastHashes()` reads `SELECT TOP 1 chain_hash FROM audit_log WHERE org_id = ? ORDER BY event_seq DESC` per org. Chain integrity is immediately restored.
+
+**Compliance note:** This design responds to the DeepSeek critical finding (async 1-second tamper window) and the Gemini deadlock concern by removing the async worker entirely and using application-level serialization instead of database-level locking.
 
 ---
 

@@ -295,9 +295,37 @@ CREATE INDEX grc_record_score  FOR (n:GrcRecord) ON (n.orgId, n.computedScore);
 CREATE FULLTEXT INDEX grc_record_search FOR (n:GrcRecord) ON EACH [n.displayName];
 ```
 
+### 6.1 Graph Schema Versioning
+
+When new node properties or relationship types are added during platform upgrades, the graph schema must be versioned to ensure safe migration.
+
+Every `Organization` node carries a `graphSchemaVersion` property:
+
+```cypher
+MERGE (o:Organization {orgId: $orgId})
+SET o.graphSchemaVersion = 4   // bump on each schema migration
+```
+
+The `GraphProjectionWorker` checks `graphSchemaVersion` on startup and runs any pending Cypher migration scripts in order:
+
+```java
+@PostConstruct
+public void migrateSchema() {
+    int current = graphSchemaRepository.getSchemaVersion(orgId);
+    for (GraphSchemaMigration m : migrations) {
+        if (m.version() > current) {
+            neo4jTemplate.APPLY(m.cypher());
+            graphSchemaRepository.updateSchemaVersion(orgId, m.version());
+        }
+    }
+}
+```
+
+Migration scripts are versioned files in `resources/graph-migrations/v{N}.cypher`. This mirrors the Liquibase approach used for SQL Server but adapted to Cypher. A full Neo4j rebuild (wipe and re-project from SQL Server) always produces the current schema version.
+
 ---
 
-## 7. Java Implementation
+
 
 ### 7.1 Project Module: `platform-graph`
 
@@ -358,6 +386,16 @@ type GraphData {
 ---
 
 ## 8. Consistency and Staleness
+
+### 8.0 Two-Tier Architecture Principle (Restored from v2.0 elimination)
+
+| Query Type | Data Source | Consistency | Rationale |
+|------------|-------------|-------------|-----------|
+| Single-record lookups, 1-hop relations | SQL Server | Immediate (synchronous) | Low latency; no eventual-consistency UX issues |
+| Multi-hop traversal (depth ≥ 2), impact analysis, shortest-path, compliance coverage | Neo4j | Eventual (< 5 seconds typical) | SQL recursive CTEs become O(n·m) joins; Neo4j traversal is O(log n) |
+| All writes, calculations, validations, workflow conditions | SQL Server | Synchronous (always) | Neo4j is derived — never the source of truth |
+
+> **Rule:** if a query can be answered with a single `JOIN` or `EXISTS` in SQL Server, use SQL Server. If it requires traversing more than 1 hop, use Neo4j. This line prevents accidental coupling of business logic to the graph store.
 
 ### 8.1 Bounded Staleness
 

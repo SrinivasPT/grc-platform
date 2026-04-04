@@ -91,16 +91,15 @@ The platform is built as a **relational data platform with a domain-aware rule e
 |----------|--------|
 | Runtime | Java 21 LTS |
 | Framework | Spring Boot 3.3.x |
-| GraphQL | Spring for GraphQL 1.3.x |
-| REST | Spring MVC (for file upload, webhooks, integration APIs) |
-| Security | Spring Security 6.x (OAuth2 Resource Server, SAML2) |
-| Persistence | JPA (Hibernate 6.x) + Spring Data JPA ; raw JDBC for bulk operations |
-| Schema Migration | Liquibase 4.x (context-aware — `grc_main` for production, `grc_test` for E2E tests) |
-| Build | Gradle 8.x (multi-module) |
+| GraphQL | Spring for GraphQL 1.3.x; `@BatchMapping` on all collection resolvers |
+| REST | Spring MVC (file upload, webhooks, integration APIs, OAuth2 callbacks) |
+| Security | Spring Security 6.x — OAuth2 Resource Server (Keycloak JWT) |
+| Persistence | JPA (Hibernate 6.x) + Spring Data JPA; raw JDBC for bulk operations |
+| Schema Migration | Liquibase 4.x (context-aware — `grc_main` prod, `grc_test` E2E tests) |
+| Build | Gradle 8.x (multi-module, compile-time boundary enforcement) |
+| Context | Java 21 `ScopedValue` replaces `ThreadLocal` for tenant context (virtual thread-safe) |
 
-**Why Java 21:** Virtual threads (Project Loom) enable high concurrency without the complexity of reactive programming. Records and sealed classes improve domain modeling. Java 21 is production-proven and will be supported until 2031.
-
-**Why Spring Boot:** Most mature enterprise Java framework. Unmatched integration ecosystem. Spring Security for SAML/OIDC/JWT is production-grade and battle-tested.
+**Why Java 21:** Virtual threads (Project Loom) enable high concurrency without reactive complexity. `ScopedValue` (JEP 446) is designed specifically for structured concurrency and works correctly across virtual thread boundaries. Sealed classes improve DSL AST modeling.
 
 ### 4.3 Primary Database — SQL Server 2025
 
@@ -127,7 +126,16 @@ The platform is built as a **relational data platform with a domain-aware rule e
 
 **Why Neo4j:** GRC relationship traversal (Control → Policy → Regulation → Framework → Risk) requires graph traversal, not recursive SQL. Multi-hop relationship queries that would require 6-way JOINs in SQL become single Cypher statements.
 
-### 4.5 GraphQL — Spring for GraphQL
+### 4.5 Identity Gateway Chain
+
+| Tier | Component | Responsibility |
+|------|-----------|----------------|
+| 1 | **Apigee** (API gateway) | TLS termination, API key validation, rate limiting, SOC request logging |
+| 2 | **Keycloak** (identity broker) | Brokers SAML from Ping into JWTs; manages refresh token lifecycle; SCIM 2.0 inbound |
+| 3 | **Ping Identity** (enterprise IdP) | SAML 2.0 assertions, MFA, AD group membership, attribute-based role mapping |
+| App | **Spring Security** (OAuth2 RS) | Validates Keycloak-signed JWTs; does not talk to Ping directly |
+
+The application is an **OAuth2 Resource Server only** — it validates JWTs issued by Keycloak. Swapping the enterprise IdP from Ping to Azure AD is a Keycloak configuration change with zero application code changes.
 
 **Why GraphQL fits this platform:**
 - GRC forms are deeply nested (Record → Fields → Related Records → Their Fields)

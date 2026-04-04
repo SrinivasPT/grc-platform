@@ -77,31 +77,91 @@ ALTER TABLE users ADD
 
 ### 2.2 JWT Token Design
 
-Tokens are issued by the platform's auth endpoint after successful identity validation. Short-lived access tokens + longer-lived refresh tokens:
+Tokens are issued by **Keycloak** (identity broker) after it validates the SAML assertion from Ping Identity. The platform is an OAuth2 Resource Server — it validates JWTs but does not issue them.
+
+Short-lived access tokens + longer-lived refresh tokens:
 
 | Token Type | Lifetime | Transport |
 |-----------|----------|-----------|
-| Access Token | 15 minutes | Authorization: Bearer header |
+| Access Token | **5 minutes** | Authorization: Bearer header |
 | Refresh Token | 8 hours (configurable) | HttpOnly secure cookie |
+
+> **Why 5 minutes (down from 15):** A DeepSeek-identified risk — if an admin revokes a user's `risk_manager` role, the old token remains valid for up to 15 minutes. At 5 minutes + `role_version` check, the effective window for stale permissions is < 5 minutes.
 
 **JWT Payload:**
 
 ```json
 {
-  "sub":        "user-uuid",
-  "org_id":     "org-uuid",
-  "org_slug":   "acme-corp",
-  "email":      "jane.doe@acme.com",
-  "name":       "Jane Doe",
-  "roles":      ["risk_manager", "compliance_viewer"],
-  "session_id": "session-uuid",
-  "iat":        1712196000,
-  "exp":        1712196900,
-  "jti":        "token-uuid"
+  "sub":          "user-uuid",
+  "org_id":       "org-uuid",
+  "org_slug":     "acme-bank",
+  "email":        "jane.doe@acme.com",
+  "name":         "Jane Doe",
+  "roles":        ["risk_manager", "compliance_viewer"],
+  "role_version": 7,
+  "session_id":   "session-uuid",
+  "iat":          1712196000,
+  "exp":          1712196300,
+  "jti":          "token-uuid"
 }
 ```
 
-Tokens are signed with **RS256** (asymmetric). The public key is published at `/.well-known/jwks.json`.
+Tokens are signed with **RS256** (asymmetric). Keycloak's public key is at `/.well-known/jwks.json` on the Keycloak realm. The application verifies the signature on every request — no database call needed for basic JWT validation.
+
+### 2.2a Role Version Freshness Check
+
+The `role_version` claim is a monotonic integer stored on the `users` table and incremented every time a user's role assignment changes. A `RoleFreshnessFilter` checks this on every request:
+
+```java
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 10)
+public class RoleFreshnessFilter extends OncePerRequestFilter {
+
+    private final RoleVersionCache cache; // Caffeine cache, 2-min TTL
+    private final UserRepository userRepo;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res,
+                                     FilterChain chain) throws IOException, ServletException {
+        if (req.getRequestURI().startsWith("/actuator")) {
+            chain.doFilter(req, res);
+            return;
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth instanceof JwtAuthenticationToken jwt) {
+            Integer jwtRoleVersion = jwt.getToken().getClaimAsInteger("role_version");
+            UUID userId = UUID.fromString(jwt.getToken().getSubject());
+
+            int currentVersion = cache.get(userId,
+                id -> userRepo.getRoleVersion(id));  // hits DB only on cache miss
+
+            if (jwtRoleVersion == null || jwtRoleVersion < currentVersion) {
+                // Token has stale roles — reject; client must re-authenticate
+                res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                res.setContentType("application/json");
+                res.getWriter().write("{\"error\":\"token_roles_stale\","
+                    + "\"message\":\"Role assignment changed. Please re-authenticate.\"}");
+                return;
+            }
+        }
+        chain.doFilter(req, res);
+    }
+}
+```
+
+```sql
+-- Add to users table
+ALTER TABLE users ADD role_version INT NOT NULL DEFAULT 1;
+
+-- Increment on every role assignment change
+CREATE TRIGGER trg_bump_role_version ON user_roles
+AFTER INSERT, DELETE AS
+BEGIN
+    -- Bump version for affected users
+    UPDATE users SET role_version = role_version + 1
+    WHERE id IN (SELECT user_id FROM inserted UNION SELECT user_id FROM deleted);
+END;
+```
 
 ### 2.3 SAML 2.0 Flow
 
@@ -268,27 +328,92 @@ Fields marked with `field_level_access` in their config are only included in API
 
 ### 4.1 Tenant Resolution on Every Request
 
-Every authenticated request resolves the tenant (organization) from the JWT `org_id` claim. This is available throughout the request lifecycle via a Spring `TenantContext` thread-local:
+Every authenticated request resolves the tenant (organization) from the JWT `org_id` claim. This is propagated using Java 21 **`ScopedValue`** — safe for virtual threads (unlike `ThreadLocal` which can leak across carrier thread remounts):
 
 ```java
+// ScopedValue holder — replaces ThreadLocal
+public final class TenantContext {
+    public static final ScopedValue<TenantInfo> CURRENT = ScopedValue.newInstance();
+
+    public static <T> T runWith(TenantInfo info, Callable<T> task) throws Exception {
+        return ScopedValue.where(CURRENT, info).call(task);
+    }
+
+    public static TenantInfo get() {
+        // Throws NoSuchElementException if called outside a scoped context — fail-fast
+        return CURRENT.get();
+    }
+}
+
 @Component
 public class TenantContextFilter extends OncePerRequestFilter {
     @Override
-    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) {
+    protected void doFilterInternal(HttpServletRequest req, HttpServletResponse res,
+                                     FilterChain chain) throws IOException, ServletException {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth instanceof JwtAuthenticationToken jwt) {
-            UUID orgId = UUID.fromString(jwt.getToken().getClaimAsString("org_id"));
+            UUID orgId  = UUID.fromString(jwt.getToken().getClaimAsString("org_id"));
             UUID userId = UUID.fromString(jwt.getToken().getSubject());
-            TenantContext.set(new TenantInfo(orgId, userId));
-        }
-        try {
+            try {
+                TenantContext.runWith(new TenantInfo(orgId, userId), () -> {
+                    chain.doFilter(req, res);
+                    return null;
+                });
+            } catch (Exception e) {
+                throw new ServletException(e);
+            }
+        } else {
             chain.doFilter(req, res);
-        } finally {
-            TenantContext.clear();  // always clear after request
         }
     }
 }
 ```
+
+**Background worker context propagation** — workers have no HTTP request, so they set context explicitly:
+
+```java
+@Component
+public class WorkflowSlaJob {
+    private static final UUID SYSTEM_USER_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+
+    @Scheduled(fixedDelay = 60_000)
+    public void checkSlaBreaches() {
+        // Each org processed with its own scoped context
+        workflowRepository.getOrgsWithOpenInstances().forEach(orgId -> {
+            try {
+                TenantContext.runWith(new TenantInfo(orgId, SYSTEM_USER_ID), () -> {
+                    slaService.processBreachesForOrg(orgId);
+                    return null;
+                });
+            } catch (Exception e) {
+                log.error("SLA check failed for org {}", orgId, e);
+            }
+        });
+    }
+}
+```
+
+**SQL Server `SESSION_CONTEXT` propagation** — the `HikariCP` connection decorator sets `org_id` on every connection checkout. This feeds the RLS policy:
+
+```java
+public class TenantAwareDataSource extends DelegatingDataSource {
+    @Override
+    public Connection getConnection() throws SQLException {
+        Connection conn = super.getConnection();
+        if (TenantContext.CURRENT.isBound()) {
+            TenantInfo info = TenantContext.CURRENT.get();
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "EXEC sp_set_session_context @key = N'org_id', @value = ?, @read_only = 1")) {
+                ps.setString(1, info.orgId().toString());
+                ps.execute();
+            }
+        }
+        return conn;
+    }
+}
+```
+
+`@read_only = 1` prevents subsequent SQL from overwriting the `org_id` within the same connection, preventing SQL injection via `SESSION_CONTEXT` manipulation.
 
 ### 4.2 JPA Hibernate Filter
 
@@ -337,6 +462,10 @@ CREATE TABLE api_keys (
     name            NVARCHAR(255)     NOT NULL,
     key_hash        NCHAR(64)         NOT NULL UNIQUE,  -- SHA-256 of the raw key; never store raw
     scopes          NVARCHAR(MAX)     NOT NULL,          -- JSON: ["record:read","record:create"]
+    -- Scope expression DSL: restricts key to specific org units, applications, or record conditions
+    scope_expression NVARCHAR(MAX)    NULL,              -- JSON rule DSL (same as ABAC DSL)
+    -- Example: { "eq": [{"field":"current_request.app_key"},{"literal":"risk"}] }
+    -- Example: { "in": [{"field":"current_request.org_unit_id"}, {"literal": ["unit-1","unit-2"]}] }
     expires_at      DATETIME2         NULL,
     last_used_at    DATETIME2         NULL,
     is_active       BIT               NOT NULL DEFAULT 1,
@@ -345,7 +474,20 @@ CREATE TABLE api_keys (
 );
 ```
 
-API keys are presented as `Authorization: Bearer grc_<base64-encoded-random-64-bytes>`. The platform hashes the incoming key (SHA-256) and looks it up in the table. The key's `scopes` array is used as a synthetic role set.
+API keys are presented as `Authorization: Bearer grc_<base64-encoded-random-64-bytes>`. The platform hashes the incoming key (SHA-256) and looks it up in the table. The key's `scopes` array is used as a synthetic role set. If `scope_expression` is set, it is evaluated against the request context — a key may be restricted to read-only access to a single org unit.
+
+**Scoped API key evaluation:**
+```java
+// ApiKeyAuthFilter
+if (apiKey.getScopeExpression() != null) {
+    RequestContext reqCtx = buildRequestContext(request); // app_key, org_unit_id, etc.
+    boolean inScope = ruleEngine.evaluate(apiKey.getScopeExpression(), reqCtx);
+    if (!inScope) {
+        response.sendError(403, "Request outside API key scope");
+        return;
+    }
+}
+```
 
 ---
 

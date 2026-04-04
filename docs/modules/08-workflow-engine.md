@@ -201,6 +201,8 @@ CREATE TABLE workflow_instances (
     record_id       UNIQUEIDENTIFIER  NOT NULL REFERENCES records(id),
     definition_id   UNIQUEIDENTIFIER  NOT NULL REFERENCES workflow_definitions(id),
     current_state   NVARCHAR(100)     NOT NULL,
+    version         INT               NOT NULL DEFAULT 1,  -- optimistic locking for parallel approval race
+    version         INT               NOT NULL DEFAULT 1,  -- optimistic locking for parallel approval race
     started_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
     completed_at    DATETIME2         NULL,
     sla_due_at      DATETIME2         NULL,       -- computed from state SLA config
@@ -240,12 +242,24 @@ CREATE TABLE workflow_tasks (
     completed_at    DATETIME2         NULL,
     completed_by    UNIQUEIDENTIFIER  NULL REFERENCES users(id),
     decision        NVARCHAR(20)      NULL,       -- 'approved' | 'rejected' | null
-    comment         NVARCHAR(2000)    NULL,
+    -- Delegation support
+    delegated_by    UNIQUEIDENTIFIER  NULL REFERENCES users(id),
+    delegated_at    DATETIME2         NULL,
+    escalation_due_at DATETIME2       NULL,        -- if not completed by escalation_due_at, escalate to manager
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME()
 );
-CREATE INDEX idx_wt_user   ON workflow_tasks(assigned_user_id, status, org_id);
-CREATE INDEX idx_wt_role   ON workflow_tasks(assigned_role, status, org_id);
-CREATE INDEX idx_wt_inst   ON workflow_tasks(instance_id, status);
+CREATE INDEX idx_wt_user        ON workflow_tasks(assigned_user_id, status, org_id);
+CREATE INDEX idx_wt_role        ON workflow_tasks(assigned_role, status, org_id);
+CREATE INDEX idx_wt_inst        ON workflow_tasks(instance_id, status);
+CREATE INDEX idx_wt_escalation  ON workflow_tasks(escalation_due_at, status)
+    WHERE status = 'open' AND escalation_due_at IS NOT NULLleted by escalation_due_at, escalate to manager
+    created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME()
+);
+CREATE INDEX idx_wt_user        ON workflow_tasks(assigned_user_id, status, org_id);
+CREATE INDEX idx_wt_role        ON workflow_tasks(assigned_role, status, org_id);
+CREATE INDEX idx_wt_inst        ON workflow_tasks(instance_id, status);
+CREATE INDEX idx_wt_escalation  ON workflow_tasks(escalation_due_at, status)
+    WHERE status = 'open' AND escalation_due_at IS NOT NULL;
 ```
 
 ---
@@ -289,21 +303,27 @@ triggerTransition(instanceId, transitionKey, actorId):
   4. Evaluate conditions (Rule Engine):
        - All conditions must pass → else throw WorkflowConditionException(condition.error)
   5. Check require_comment → if true and comment is blank → throw ValidationException
-  6. Execute on_enter_actions in order:
-       a. 'create_task' → insert workflow_tasks rows
-       b. 'notify'      → queue notification (async, non-blocking)
-       c. 'set_field'   → update field value on record (via RecordService)
-  7. Update workflow_instances.current_state to transition.to_state
+  6-in-transaction:
+       a. 'create_task' → INSERT workflow_tasks (in same transaction)
+       b. 'notify'      → INSERT event_outbox row (in same transaction; worker delivers after commit)
+       c. 'set_field'   → INSERT event_outbox row (in same transaction; worker updates field after commit)
+  7. UPDATE workflow_instances SET current_state = @newState, version = version + 1
+       WHERE id = @instanceId AND version = @expectedVersion
+     → 0 rows updated = ConcurrencyConflictException (parallel transition snuck in)
   8. Insert workflow_history row
-  9. Update records.workflow_state to match
+  9. Update records.workflow_state to match (same transaction)
   10. If new state is terminal → set workflow_instances.completed_at
   11. Compute new sla_due_at from new state's SLA config
-  12. Write audit_log entry
-  13. Emit WorkflowStateChangedEvent (for subscriptions)
+  12. Write audit_log entry (same transaction, synchronous hash)
+  13. Emit WorkflowStateChangedEvent (for subscriptions, via outbox)
   14. Return updated WorkflowInstance
 ```
 
-All steps within a transition execute in a single database transaction. If any step fails, the entire transition is rolled back.
+> **Outbox for side-effects (DeepSeek fix):** `notify` and `set_field` actions insert rows into `event_outbox` within the transaction. If the transaction rolls back, there are no phantom notifications. The outbox worker delivers notifications only after commit.
+
+> **Optimistic locking on parallel approvals (DeepSeek fix):** When `completion_mode = all` and two parallel approvers complete simultaneously, step 7's `WHERE version = @expectedVersion` ensures only one transition executes. The second concurrent call receives a `ConcurrencyConflictException` and retries — it either finds the state has already advanced (idempotent) or retries the transition.
+
+All steps within a transition execute in a **single database transaction**. If any step fails, the entire transition is rolled back.
 
 ---
 
