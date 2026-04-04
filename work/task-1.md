@@ -1,0 +1,4 @@
+- As we are currrenlty in April 2026, should we be using Java 25 and React 19? Make necessary changes to the design
+- Consider the regression testing, module level testing approaches and make them fully automated.
+- Code coverage, but stubbing to be done only when dealing with DB / Graph. Remaining all to be used as is while testing. Have most of the test cases are end to end testing rather than unit at the module level
+- 
