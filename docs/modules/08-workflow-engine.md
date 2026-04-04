@@ -348,10 +348,36 @@ CREATE TABLE workflow_delegations (
     delegate_id     UNIQUEIDENTIFIER  NOT NULL REFERENCES users(id),
     valid_from      DATETIME2         NOT NULL,
     valid_until     DATETIME2         NOT NULL,
+    escalation_days INT               NOT NULL DEFAULT 0,  -- 0 = no escalation
     scope           NVARCHAR(MAX)     NULL,   -- JSON: optional app/workflow scope restriction
     is_active       BIT               NOT NULL DEFAULT 1,
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME()
 );
+```
+
+### 8.1 Delegation with Escalation
+
+Standard one-to-one delegation is extended to support **escalation** when a delegate does not act within the SLA:
+
+1. A `workflow_delegation` record includes an `escalation_days` field (default `0` = no escalation).
+2. A scheduled job checks active delegations daily: if the delegate has tasks older than `escalation_days` from the delegation start date, a new task is created for the **delegator's direct manager** (resolved via `org_unit` hierarchy from Module 26).
+3. The original delegate task is retained (not cancelled) — both the delegate and the manager's manager see the task.
+4. An escalation notification is sent to the manager and the original delegator.
+
+```java
+@Scheduled(cron = "0 0 8 * * *")  // 8 AM daily
+public void checkDelegationEscalations() {
+    List<WorkflowDelegation> escalatable = delegationRepository
+        .findActiveWithPendingEscalation(LocalDate.now());
+
+    for (WorkflowDelegation delegation : escalatable) {
+        User manager = orgUnitService.findDirectManager(delegation.getDelegatorId());
+        if (manager != null) {
+            workflowTaskService.createEscalationTask(delegation, manager);
+            notificationService.sendEscalationNotification(delegation, manager);
+        }
+    }
+}
 ```
 
 When a user has an active delegation, tasks assigned to them appear in both their and their delegate's task inbox.
@@ -405,13 +431,13 @@ KPIs available for reporting (Module 12):
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should workflows support loops (e.g., review → reject → revise → review)? Already handled via `from_states`. | Confirmed supported |
-| 2 | Should there be a visual workflow designer in the admin UI? | High (MVP?) |
-| 3 | Webhook trigger for external systems when workflow state changes? | High |
-| 4 | Multiple active workflows per record (e.g., approval + periodic review simultaneously)? | Medium |
-| 5 | Workflow versioning: active instances using v1 stay on v1 when v2 is published? | High — must address |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should workflows support loops (e.g., review → reject → revise → review)? | Confirmed | Supported via `from_states` array on transitions. |
+| 2 | Should there be a visual workflow designer in the admin UI? | High (MVP?) | |
+| 3 | Webhook trigger for external systems when workflow state changes? | High | |
+| 4 | ~~Multiple active workflows per record?~~ | Medium | **Resolved:** No for MVP — one active workflow instance per record. Multiple workflows can be defined but only one may be active at a time. |
+| 5 | ~~Workflow versioning?~~ | High | **Resolved:** Active instances stay on the version they started with. An **admin migration tool** (`WorkflowMigrationService`) allows explicit migration of individual instances to a newer version with field mapping rules. Migration requires recording the `migrated_by` user and a `migration_note` in `workflow_history`. |
 
 ---
 

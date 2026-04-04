@@ -95,7 +95,7 @@ The platform is built as a **relational data platform with a domain-aware rule e
 | REST | Spring MVC (for file upload, webhooks, integration APIs) |
 | Security | Spring Security 6.x (OAuth2 Resource Server, SAML2) |
 | Persistence | JPA (Hibernate 6.x) + Spring Data JPA ; raw JDBC for bulk operations |
-| Schema Migration | Flyway 10.x |
+| Schema Migration | Liquibase 4.x (context-aware — `grc_main` for production, `grc_test` for E2E tests) |
 | Build | Gradle 8.x (multi-module) |
 
 **Why Java 21:** Virtual threads (Project Loom) enable high concurrency without the complexity of reactive programming. Records and sealed classes improve domain modeling. Java 21 is production-proven and will be supported until 2031.
@@ -184,7 +184,7 @@ grc-platform/
 │   ├── platform-integration/      ← Integration framework
 │   │   └── src/main/java/com/grc/integration/
 │   └── db/
-│       └── migrations/            ← Flyway SQL migrations (V001__init.sql ...)
+│       └── migrations/            ← Liquibase changelogs (contexts: main, test)
 └── infrastructure/
     ├── docker-compose.yml         ← Local dev: SQL Server + Neo4j + app
     └── k8s/                       ← Kubernetes manifests (future)
@@ -212,6 +212,7 @@ platform-graph     → platform-core (reads from SQL, writes to Neo4j)
 platform-search    → platform-core
 platform-reporting → platform-core
 platform-integration → platform-core
+platform-orgunit   → platform-core  (Organizational Hierarchy — Module 26)
 ```
 
 **Circular dependencies are a build failure.**
@@ -220,14 +221,23 @@ platform-integration → platform-core
 
 ## 7. Multi-Tenancy Model
 
-**Approach: Organization-based row-level tenancy**
+**Approach: Single-bank organization with internal hierarchy**
 
-Every table in the data model carries an `org_id` column. Tenant resolution happens at the API layer auth filter — the JWT claim carries the `org_id`, which is injected as a query parameter into every database operation via a Spring Data JPA interceptor.
+This platform is deployed for a **single bank**. Multi-tenant SaaS design is not required. Every table carries an `org_id` column (scoped to the one bank's organization record) to keep the data model clean and future-proof. The primary isolation units are **organizational units** (business divisions, departments, subsidiaries, regions) — see Module 26.
 
-No data from one organization is ever visible to another. This is enforced at three levels:
-1. **Application level:** Service layer always filters by `org_id`
-2. **JPA level:** Hibernate filter applied globally for all queries
-3. **DB level:** Row-Level Security (RLS) on SQL Server as defense-in-depth
+The `org_id` from the Keycloak JWT is injected into every database operation at two levels:
+1. **JPA level:** Hibernate `@Filter` applied globally for all queries via `OrgContextHolder`
+2. **DB level:** SQL Server Row-Level Security (RLS) using `SESSION_CONTEXT(N'org_id')` as defense-in-depth
+
+### Background Thread Context Propagation (Virtual Threads — Java 21)
+
+Background workers (Workflow Engine, Notification Dispatcher, Graph Projection Worker) do not have an active HTTP request. The `org_id` must be propagated explicitly:
+
+- **HTTP requests:** `OrgContextFilter` extracts `org_id` from the JWT claim and stores it in a `ScopedValue<UUID>` (Java 21 — not `ThreadLocal`, which may not propagate correctly across virtual thread mount/unmount boundaries).
+- **Background tasks:** Before dispatching a task to a virtual thread, the dispatcher captures the `ScopedValue` carrier and re-binds it in the new thread scope via `ScopedValue.runWhere(ORG_CONTEXT, orgId, task)`.
+- **SQL Server session context:** `HikariCP` `ConnectionInitSql` is not used; instead, a custom `DataSourceConnectionInterceptor` executes `EXEC sp_set_session_context @key=N'org_id', @value=@orgId, @read_only=1` on each connection borrow, reading the value from `OrgContextHolder.get()`.
+
+This ensures RLS is correctly applied for all queries regardless of whether they originate from an HTTP thread or a background virtual thread.
 
 ---
 
@@ -242,7 +252,30 @@ No data from one organization is ever visible to another. This is enforced at th
 - Containerized: All services in Docker containers
 - Orchestration: Kubernetes (target) — manifests in `/infrastructure/k8s/`
 - Database: SQL Server on dedicated VM or Azure SQL MI (SQL Server 2025 compatible)
-- Neo4j: Neo4j Aura Enterprise or self-hosted on dedicated VM
+- Neo4j: **Neo4j Enterprise Edition** (production) for clustering and online backup; Neo4j Community Edition for development and CI
+
+### Test Schema Strategy (Liquibase Dual-Context)
+
+The CI pipeline uses a `grc_test` schema alongside the production `grc_main` schema:
+
+- Liquibase changesets use `context="main"` (production) and `context="test"` (seed data).
+- Liquibase runs **once** at test suite start using `@TestcontainersConfig` — *not* before each test method.
+- Each test method is annotated `@Transactional` and rolls back its data mutations after completion.
+- This ensures tests execute in milliseconds while still exercising real SQL Server logic, stored procedures, and RLS policies.
+
+```java
+// Example: single Liquibase init for all integration tests
+@SpringBootTest
+@ActiveProfiles("test")
+@Testcontainers
+class BaseIntegrationTest {
+    @Container
+    static MSSQLServerContainer<?> sqlServer = new MSSQLServerContainer<>("mcr.microsoft.com/mssql/server:2022-latest");
+
+    // Liquibase runs once: grc_test schema + seed data created once per suite
+    // Individual tests roll back via @Transactional
+}
+```
 - Reverse Proxy: nginx or Azure Application Gateway
 - Secrets: Kubernetes Secrets (or Azure Key Vault in cloud deployment)
 
@@ -295,15 +328,13 @@ No data from one organization is ever visible to another. This is enforced at th
 
 ## 11. Open Questions
 
-| # | Question | Owner | Priority |
-|---|----------|-------|----------|
-| 1 | SaaS vs single-enterprise deployment? Affects multi-tenancy depth | Stakeholder | Critical |
-| 2 | On-premise vs cloud-only? Affects storage, backup, and networking design | Stakeholder | Critical |
-| 3 | Required SSO providers? (Azure AD, Okta, PingIdentity, etc.) | Stakeholder | High |
-| 4 | Expected peak concurrent users for initial launch? | Stakeholder | High |
-| 5 | Data residency / sovereignty requirements? | Legal/Compliance | High |
-| 6 | Initial GRC modules to launch (MVP scope)? | Product | High |
-
----
+| # | Question | Owner | Priority | Resolution |
+|---|----------|-------|----------|-----------|
+| 1 | ~~SaaS vs single-enterprise deployment?~~ | Stakeholder | Critical | **Resolved:** Single bank. `org_id` columns are retained for internal organizational hierarchy (business units, subsidiaries) — see Module 26. Only one `organizations` record exists. |
+| 2 | On-premise vs cloud-only? Affects storage, backup, and networking design | Stakeholder | Critical | |
+| 3 | Required SSO providers? (Azure AD, Okta, PingIdentity, etc.) | Stakeholder | High | Apigee → Keycloak (broker) → Ping Identity per constraints. |
+| 4 | Expected peak concurrent users for initial launch? | Stakeholder | High | |
+| 5 | Data residency / sovereignty requirements? | Legal/Compliance | High | |
+| 6 | Initial GRC modules to launch (MVP scope)? | Product | High | MVP: Risk, Control, Policy, Issues, Compliance, and basic Reporting. |
 
 *Next Module: [02 — Data Model & Schema](02-data-model-schema.md)*

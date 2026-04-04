@@ -134,11 +134,21 @@ public class AuditContext {
 }
 ```
 
-### 2.5 Tamper Evidence — Hash Chaining
+### 2.5 Tamper Evidence — Hash Chaining (Deadlock-Safe Design)
 
-Every 1000 rows (configurable batch), a SHA-256 hash of all preceding rows in the batch is computed and stored in a `audit_chain_hashes` table. This allows detection of any row deletion or modification:
+Every audit log row is tamper-evident via SHA-256 hash chaining. **Critical constraint:** hash computation must **not** happen synchronously within the primary transaction, because reading the previous row's hash while the previous write is still in progress causes deadlocks under concurrency.
+
+**Two-phase design:**
+
+**Phase 1 (Synchronous, same transaction):** The audit log row is inserted with `chain_hash = NULL`. The row is committed with the triggering action.
+
+**Phase 2 (Asynchronous, separate process):** A background `HashChainWorker` processes unlinked rows in strict `event_time` + `id` order, computes the SHA-256 chain, and updates the `chain_hash` column.
 
 ```sql
+-- Audit log column update: chain_hash can initially be NULL
+ALTER TABLE audit_log ADD chain_hash NCHAR(64) NULL;  -- NULL until background worker processes
+
+-- Separate hash chain table (for batch-level verification)
 CREATE TABLE audit_chain_hashes (
     batch_id        BIGINT           NOT NULL PRIMARY KEY IDENTITY,
     org_id          UNIQUEIDENTIFIER NOT NULL,
@@ -151,7 +161,94 @@ CREATE TABLE audit_chain_hashes (
 );
 ```
 
+**Hash Chain Worker (deadlock-free):**
+```java
+@Component
+public class HashChainWorker {
+    // Processes batches of unhashed audit rows in strict order
+    // Uses row-level locking (SELECT ... WITH (UPDLOCK, READPAST)) to handle concurrency:
+    // - Never reads the "to-be-written" hash of a pending row
+    // - Processes only rows where chain_hash IS NULL, ordered by event_time ASC, id ASC
+    // - Writes hash chain updates in a separate, independent transaction
+    @Scheduled(fixedDelay = 1000)  // runs every second
+    public void processUnlinkedRows() {
+        List<AuditLogEntry> unlinked = auditLogRepository
+            .findUnlinkedBatch(BATCH_SIZE); // SELECT TOP 500 WHERE chain_hash IS NULL ORDER BY event_time, id
+        if (unlinked.isEmpty()) return;
+
+        String prevHash = auditLogRepository.getLastChainHash(unlinked.get(0).getOrgId());
+        for (AuditLogEntry entry : unlinked) {
+            String rowData = toCanonicalJson(entry);
+            String hash = sha256(prevHash + rowData);
+            auditLogRepository.updateChainHash(entry.getId(), hash);
+            prevHash = hash;
+        }
+    }
+}
+```
+
+**Compliance note:** The < 1 second window where `chain_hash IS NULL` is acceptable — an audit row with no hash is detectable by a chain verifier as an unprocessed row, not a tampered row. The immutable `id`, `event_time`, and `new_value` columns are already committed and cannot be altered.
+
 A background job runs daily to verify chain integrity and alerts if tampering is detected.
+
+---
+
+## 2a. Read Access Logging for Sensitive Data
+
+Banks are subject to regulations (e.g., local banking secrecy laws, Basel III data governance) that require logging of who accessed sensitive data. The standard audit log tracks only mutations — a separate **read audit log** tracks access to sensitive fields.
+
+### 2a.1 Selective Read Logging
+
+Sensitive fields are marked in `field_definitions.audit_reads = true`. When a record containing audited fields is retrieved, a read event is written to a separate table:
+
+```sql
+CREATE TABLE audit_read_log (
+    id              UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWSEQUENTIALID() PRIMARY KEY,
+    org_id          UNIQUEIDENTIFIER  NOT NULL,
+    event_time      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
+    user_id         UNIQUEIDENTIFIER  NOT NULL,
+    session_id      UNIQUEIDENTIFIER  NULL,
+    entity_type     NVARCHAR(100)     NOT NULL,
+    entity_id       UNIQUEIDENTIFIER  NOT NULL,
+    fields_accessed NVARCHAR(MAX)     NOT NULL,  -- JSON: ["account_number","swift_code"]
+    ip_address      NVARCHAR(45)      NULL,
+    purpose         NVARCHAR(500)     NULL        -- optional: user-stated reason for access
+)
+-- Partition by event_time (weekly partitions; archived more aggressively than write audit)
+;
+CREATE INDEX idx_readlog_entity ON audit_read_log(entity_id, entity_type, event_time);
+CREATE INDEX idx_readlog_user   ON audit_read_log(user_id, event_time);
+```
+
+Add to `field_definitions` table:
+```sql
+ALTER TABLE field_definitions ADD
+    audit_reads      BIT NOT NULL DEFAULT 0,   -- log every read of this field
+    is_highly_sensitive BIT NOT NULL DEFAULT 0; -- log all record reads (not just field reads)
+```
+
+### 2a.2 Logging Trigger
+
+Read logging is enforced at the **service layer**, not the database layer:
+
+```java
+// In RecordService.getRecord():
+public Record getRecord(UUID recordId) {
+    Record record = recordRepository.findById(recordId);
+    List<String> sensitiveFields = fieldDefCache.getSensitiveFieldKeys(record.getApplicationId());
+    
+    if (!sensitiveFields.isEmpty() || record.isHighlySensitive()) {
+        readAuditService.logReadAsync(record, sensitiveFields, currentUser());
+    }
+    return record;
+}
+```
+
+Read audit writes are **asynchronous** (non-blocking) — they must not add latency to read operations. Writes go through a bounded in-memory queue drained by a dedicated virtual thread.
+
+### 2a.3 Retention and Archival
+
+The `audit_read_log` table has more aggressive archival than the write audit log: archived after 2 years (vs 7 years for write audit), per banking data management guidelines.
 
 ---
 
@@ -377,13 +474,13 @@ public class AuditService {
 
 ## 8. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should read access be logged? (Creates high volume — 10x the write audit volume) | High |
-| 2 | Should record snapshots be stored compressed? Large text fields make snapshots very large. | Medium |
-| 3 | Archive storage: local cold disk vs Azure Blob cold tier vs S3 Glacier? | Medium |
-| 4 | Should the audit chain hash verification run automatically on a schedule and alert? | High |
-| 5 | GDPR right-to-erasure: how to handle when a user requests deletion of their data from audit logs? | High — legal question |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should read access be logged?~~ | High | **Resolved:** Selective read logging via `audit_read_log` table. Fields marked `audit_reads = true` trigger async log writes on every read. See Section 2a. |
+| 2 | Should record snapshots be stored compressed? Large text fields make snapshots very large. | Medium | |
+| 3 | Archive storage: local cold disk vs Azure Blob cold tier vs S3 Glacier? | Medium | |
+| 4 | Should the audit chain hash verification run automatically on a schedule and alert? | High | Yes — automated daily verification job is planned. |
+| 5 | ~~GDPR right-to-erasure: how to handle when a user requests deletion of their data from audit logs?~~ | High | **Resolved:** For a bank, regulatory retention requirements (SOX, Basel) override GDPR right-to-erasure for audit logs. This must be documented in the privacy policy and communicated to users during account creation. Personal data access is controlled via RBAC on the audit log viewer. |
 
 ---
 

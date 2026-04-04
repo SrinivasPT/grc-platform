@@ -53,7 +53,7 @@ Issues track remediation progress through a structured workflow, ensuring nothin
 | `related_policy` | Related Policy | reference | |
 | `related_framework_req` | Framework Requirement | reference | |
 | `due_date` | Remediation Due Date | date | |
-| `priority_score` | Priority Score | calculated | Derived from severity + age |
+| `priority_score` | Priority Score | calculated | Derived from severity × age × business_impact (0–100) |
 | `status` | Status | value_list | open, in_progress, pending_verification, closed, exception_requested, cancelled |
 | `closure_date` | Closure Date | date | |
 | `closure_notes` | Closure Evidence | rich_text | |
@@ -124,6 +124,28 @@ Issues track remediation progress through a structured workflow, ensuring nothin
       "requires_comment": true
     }
   ]
+}
+```
+
+### 4.2 Root Cause Verification Workflow
+
+For issues with `severity = critical` or `high`, root cause closure requires **two-person verification**:
+
+1. The issue `assignee` submits their remediation evidence and enters a root cause analysis (`root_cause` field must be filled) — transitions to `pending_verification`.
+2. A **second user** (the issue `owner` or a designated `root_cause_verifier` role) must review the root cause analysis and verify that the remediation addresses the actual root cause.
+3. Only after verification can the issue transition to `closed`. The `owner` cannot self-verify if they are also the `assignee`.
+
+The root cause verifier's identity and verification notes are recorded in the workflow history (Part of the audit trail in Module 09).
+
+```java
+// Enforced in WorkflowTransitionService
+if ("pending_verification".equals(fromState) && "closed".equals(toState)) {
+    if (issue.getSeverity() == Severity.CRITICAL || issue.getSeverity() == Severity.HIGH) {
+        if (currentUser.getId().equals(issue.getAssigneeId())) {
+            throw new WorkflowValidationException(
+                "Root cause verification must be performed by a different user than the assignee.");
+        }
+    }
 }
 ```
 
@@ -208,12 +230,12 @@ ORDER BY critical_issue_count DESC
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should exceptions be their own record type / sub-module? (Exception Management) | Medium |
-| 2 | Should issues have a public-facing portal for employees to report incidents? (Whistleblower) | Low |
-| 3 | Integration with IT Service Management — automatic Jira/ServiceNow ticket on creation? | High |
-| 4 | Should repeat finding detection look across organizations? (MSSP scenario) | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should exceptions be their own record type / sub-module? | Medium | |
+| 2 | Should issues have a public-facing portal for employees to report incidents? | Low | |
+| 3 | Integration with IT Service Management — automatic Jira/ServiceNow ticket on creation? | High | |
+| 4 | Should repeat finding detection look across organizations? | Low | N/A — single bank deployment. |
 
 ---
 

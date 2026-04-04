@@ -283,6 +283,29 @@ type Subscription {
 }
 ```
 
+#### 3.5.1 WebSocket Authentication Handshake
+
+GraphQL subscriptions use the **graphql-ws** protocol over WebSocket. The JWT must be transmitted in the `connection_init` message payload — not as an HTTP header (WebSocket upgrades do not carry Authorization headers reliably):
+
+```json
+// Client sends immediately after WebSocket connection opens:
+{
+  "type": "connection_init",
+  "payload": {
+    "Authorization": "Bearer <jwt_access_token>"
+  }
+}
+
+// Server validates the JWT; on success:
+{ "type": "connection_ack" }
+
+// Server rejects an invalid/expired token:
+{ "type": "connection_error", "payload": { "message": "UNAUTHENTICATED" } }
+// Connection is closed with code 4401
+```
+
+The Spring for GraphQL WebSocket handler extracts the JWT from `connection_init.payload.Authorization`, validates it via the same JWT verifier used for HTTP requests, and binds the `SecurityContext` for the WebSocket session. Any subscription attempt before a successful `connection_ack` is rejected.
+
 ### 3.6 Input Types (Key Examples)
 
 ```graphql
@@ -374,6 +397,30 @@ public class RecordGraphQlController {
 ```
 
 All `@BatchMapping` resolvers must be implemented for any list-returning query to prevent accidental N+1 in production.
+
+### 4.1 5-Level Deep Query: Exactly 5 SQL Queries
+
+A GRC query traversing Program → Policy → Risk → Control → Test must execute in **exactly 5 SQL queries**, regardless of how many records exist at each level:
+
+```
+Query: program → policies → risks → controls → tests
+
+SQL Query 1: SELECT * FROM records WHERE application = 'program' AND id = ?
+SQL Query 2: SELECT * FROM records WHERE id IN (program.linked_policy_ids)         ← @BatchMapping
+SQL Query 3: SELECT * FROM records WHERE id IN (all policy.linked_risk_ids)        ← @BatchMapping
+SQL Query 4: SELECT * FROM records WHERE id IN (all risk.linked_control_ids)       ← @BatchMapping
+SQL Query 5: SELECT * FROM records WHERE id IN (all control.linked_test_ids)       ← @BatchMapping
+```
+
+Each `@BatchMapping` resolver collects all parent IDs from the current level and issues a single `WHERE id IN (...)` query. The DataLoader framework (built into Spring for GraphQL) automatically batches these per-request. This is verified in the integration test suite:
+
+```java
+@Test
+void fiveLevelDeepQuery_executes_exactlyFiveSqlQueries() {
+    // Uses @QueryCount assertion from datasource-micrometer to verify SQL count
+    assertQueryCount(5, () -> executeGraphQL(DEEP_TREE_QUERY));
+}
+```
 
 ---
 
@@ -575,7 +622,16 @@ All API endpoints are rate-limited per organization:
 | Bulk import | 5 concurrent jobs per org |
 | Integration webhooks | 500 req/min per connector |
 
-Limits are configurable per organization in `org_settings`. Rate limiting is implemented via `bucket4j` (token bucket algorithm) backed by an in-memory store (upgradeable to Redis for clustered deployments).
+Limits are configurable per organization in `org_settings`. Rate limiting is implemented via `bucket4j` backed by **Redis** (production) for correct behavior in a Kubernetes multi-pod deployment. The in-memory store is acceptable only for local development/single-pod deployments.
+
+```java
+// Production: Redis-backed token bucket via bucket4j-redis
+@Bean
+public BucketProxyManager bucketProxyManager(RedissonClient redisson) {
+    return new RedissonBasedProxyManager(redisson, ClientSideConfig.getDefault(),
+        Duration.ofMinutes(10)); // TTL for idle buckets
+}
+```
 
 ---
 
@@ -653,13 +709,13 @@ The GraphQL schema is the living API contract. It is:
 
 ## 12. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should GraphQL subscriptions use WebSocket or SSE? WebSocket more capable, SSE simpler. | Medium |
-| 2 | Do we need a public API for third-party integrators (separate from internal API)? | High |
-| 3 | API gateway needed for production (Kong, NGINX)? Affects rate limiting implementation. | Medium |
-| 4 | Should we support GraphQL persisted queries (for mobile/offline support)? | Low |
-| 5 | Query cost analysis: who defines complexity scores for custom types? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should GraphQL subscriptions use WebSocket or SSE?~~ | Medium | **Resolved:** WebSocket using the `graphql-ws` protocol. JWT transmitted in `connection_init` payload. See Section 3.5.1. |
+| 2 | Do we need a public API for third-party integrators (separate from internal API)? | High | |
+| 3 | API gateway needed for production (Kong, NGINX)? Affects rate limiting implementation. | Medium | Apigee as per constraints. Rate limiting is Redis-backed (bucket4j). |
+| 4 | Should we support GraphQL persisted queries (for mobile/offline support)? | Low | |
+| 5 | Query cost analysis: who defines complexity scores for custom types? | Medium | |
 
 ---
 

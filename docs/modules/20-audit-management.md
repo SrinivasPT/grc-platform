@@ -123,7 +123,7 @@ When a test step identifies a deficiency, an **Audit Observation** is raised. Ob
 | Field Key | Label | Type |
 |-----------|-------|------|
 | `parent_engagement` | Audit Engagement | reference |
-| `test_step` | Test Step | reference |
+| `test_step_id` | Test Step | reference | FK to the specific test step that generated this finding |
 | `title` | Observation Title | text |
 | `condition` | Condition (What we found) | rich_text |
 | `criteria` | Criteria (What should be) | rich_text |
@@ -165,6 +165,35 @@ When an observation is finalized, an **Issue record** is automatically created i
 
 When prior audit observations have agreed action dates, a follow-up engagement can be scheduled to verify closure. The follow-up tests are linked back to the original observations and auto-close the corresponding Issues.
 
+### 8.2 External Audit Export
+
+To support external audit tools and regulator submissions, audit engagement data can be exported in a standard XML format based on **IIA (Institute of Internal Auditors) CBOK** data elements:
+
+```
+GET /api/v1/audit/engagements/{id}/export?format=iia-xml
+Authorization: Bearer {token}
+
+→ Content-Type: application/xml
+→ Filename: audit_engagement_{id}_{date}.xml
+```
+
+The XML includes: engagement metadata, test steps with results, all observations with severity + root cause + management responses, and the audit timeline. This format is accepted by tools like TeamMate+ and AuditBoard for comparative analysis.
+
+```xml
+<!-- IIA-compatible export structure -->
+<AuditEngagement xmlns="http://www.theiia.org/standards/cbok/v2">
+  <EngagementNumber>AUD-2026-001</EngagementNumber>
+  <Period start="2026-01-01" end="2026-03-31"/>
+  <TestSteps>
+    <TestStep id="..." ref="...">
+      <Procedure>...</Procedure>
+      <Result>Pass|Fail</Result>
+      <Observations>...</Observations>
+    </TestStep>
+  </TestSteps>
+</AuditEngagement>
+```
+
 ---
 
 ## 9. Audit Resource Planning
@@ -201,12 +230,12 @@ CREATE TABLE audit_time_tracking (
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should audit programs be templated (reusable across engagements)? | High |
-| 2 | Should external auditor findings be tracked separately or in the same engagement? | Medium |
-| 3 | Continuous auditing — polling data automatically to detect anomalies? | Future |
-| 4 | Should audit reports be generated in-platform (PDF from template) or uploaded as files? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should audit programs be templated (reusable across engagements)? | High | |
+| 2 | ~~Should external auditor findings be tracked separately?~~ | Medium | **Resolved:** External auditor findings use the same observation structure but can be flagged with `source_type = 'external'`. IIA-compatible XML export (Section 8.2) supports exchange with external tools. |
+| 3 | Continuous auditing — polling data automatically to detect anomalies? | Future | |
+| 4 | Should audit reports be generated in-platform (PDF from template) or uploaded as files? | Medium | |
 
 ---
 

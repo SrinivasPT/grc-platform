@@ -166,6 +166,28 @@ public void syncChanges() {
 | DELETE from `record_relations` | record_relations | `MATCH ()-[r:TYPE {id:$id}]-() DELETE r` |
 | UPDATE on `field_values_reference` | field_values_reference | Re-evaluate owner/role projections |
 
+> **Soft Delete — Relationship Preservation:** When a record is soft-deleted, its Neo4j node is set to `status='deleted'` but its relationships are **not removed**. This preserves historical impact analysis (with `includeDeleted: true`). All standard queries must exclude deleted nodes globally.
+
+### 4.3a Soft Delete Global Query Interceptor
+
+All Cypher queries issued by `GraphQueryService` are subject to a global filter that excludes deleted nodes. This is enforced by a `CypherQueryInterceptor` that rewrites queries:
+
+```java
+@Component
+public class CypherQueryInterceptor {
+    // Wraps all MATCH clauses to exclude deleted nodes by default
+    // Equivalent to appending:
+    //   WHERE (n.status IS NULL OR n.status <> 'deleted')
+    // Can be bypassed by passing includeDeleted = true (for audit/historical queries)
+    public String applyDefaultFilters(String cypher, boolean includeDeleted) {
+        if (includeDeleted) return cypher;
+        return CypherRewriter.appendStatusFilter(cypher, "status", "deleted");
+    }
+}
+```
+
+All graph API endpoints that return traversal results accept an optional `includeDeleted: Boolean = false` parameter to enable historical analysis.
+
 ### 4.4 Sync State Tracking
 
 ```sql
@@ -380,17 +402,40 @@ If the Neo4j connection is unavailable:
 - All record CRUD, workflow, and reporting continues unaffected
 - Projection Worker queues changes in-memory (bounded, configurable size) for replay when connection restores
 
+### 9.4 Eventual Consistency — UI/UX Gap
+
+The graph sync is **asynchronous** with a typical staleness of < 5 seconds under normal load. When a user creates a relationship (e.g., Risk → Control) and immediately navigates to the Impact Graph view, the new relationship may not yet appear in Neo4j.
+
+**Strategy: Sync-Pending Flag + Optimistic Client Rendering**
+
+1. **API response includes sync metadata:** Every mutation that creates/deletes a relationship returns a `graphSyncPending: Boolean` flag:
+
+```graphql
+type RelationshipMutationResult {
+  relation:        RecordRelation!
+  graphSyncPending: Boolean!  # true if Neo4j has not yet confirmed the change
+}
+```
+
+2. **React UI implements optimistic graph rendering:** When `graphSyncPending = true`, the graph visualization component immediately renders the new relationship client-side without waiting for the Neo4j query response. The node is shown with a "syncing..." indicator.
+
+3. **Polling for confirmation:** The graph component polls `graphSyncStatus(relationId: UUID!)` every 2 seconds until `synced = true` (maximum 30 seconds), then replaces the optimistic node with the confirmed graph data.
+
+4. **Fallback:** If Neo4j fails to acknowledge sync within 30 seconds (e.g., service unavailable), the UI shows a toast: *"Impact graph is temporarily unavailable. Your changes are saved and will appear shortly."*
+
+This ensures the SQL Server data (source of truth) is always reflected correctly in the UI, even when Neo4j is briefly behind.
+
 ---
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Neo4j Community Edition vs Enterprise Edition? EE required for clustering and multi-tenancy features. | High |
-| 2 | Should each org have its own Neo4j database (EE feature) or share one database with orgId property isolation? | High |
-| 3 | How to handle very large organizations (millions of records, tens of millions of relationships)? Sharding? | Future |
-| 4 | Should the Projection Worker use Spring Batch (for restartable jobs) or a simpler scheduled thread? | Medium |
-| 5 | Message queue (Kafka/RabbitMQ) vs direct polling for change propagation? Queue adds resilience but complexity. | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Neo4j Community Edition vs Enterprise Edition?~~ | High | **Resolved:** Neo4j **Enterprise Edition** for production (clustering, online backup, role-based access). Neo4j Community Edition for development and CI. |
+| 2 | ~~Should each org have its own Neo4j database?~~ | High | **Resolved:** Single database with `orgId` property isolation (single bank). EE database-per-org feature not required. |
+| 3 | How to handle very large organizations (millions of records, tens of millions of relationships)? Sharding? | Future | |
+| 4 | Should the Projection Worker use Spring Batch (for restartable jobs) or a simpler scheduled thread? | Medium | |
+| 5 | ~~Message queue vs direct polling for change propagation?~~ | Medium | **Resolved for MVP:** SQL Server Change Tracking (direct polling, 2 second interval). **Future:** Consider Debezium + Kafka CDC for higher write volumes or when staleness SLA tightens below 1 second. Kafka adds operational complexity not justified at initial scale. |
 
 ---
 

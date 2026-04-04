@@ -19,8 +19,12 @@ The Notification Engine delivers timely, relevant alerts to users across multipl
 | In-app (bell icon) | Real-time task assignments, state changes | GraphQL Subscription / WebSocket |
 | Email | Formal assignment notices, SLA warnings, weekly digests | Spring Mail + Thymeleaf templates |
 | Webhook | Third-party integrations (Slack, Teams, Jira) | HTTP POST to configured URL |
+| SMS | Critical incident alerts, regulatory breach notifications | Twilio / Azure Communication Services |
+| Push (mobile) | Mobile GRC app task notifications | Firebase Cloud Messaging (FCM) |
 
-SMS and push notifications are explicitly out of scope for initial release.
+SMS and push are optional channels, enabled per org via `org_settings.sms_enabled` / `push_enabled`. They are intended for **critical/high-priority** notifications only (e.g., severity-1 incidents, overdue regulatory submissions). Low-priority notifications (digests, reminders) must not use SMS/push.
+
+OAuth credentials for Twilio and FCM are stored in the secrets vault (not in `org_settings`) and accessed via `SecretsManager.getNotificationCredentials(channelType)`.
 
 ---
 
@@ -47,12 +51,13 @@ CREATE TABLE notification_templates (
     org_id          UNIQUEIDENTIFIER  NULL,       -- NULL = system template (shared)
     key             NVARCHAR(200)     NOT NULL,
     name            NVARCHAR(255)     NOT NULL,
-    channel         NVARCHAR(20)      NOT NULL CHECK (channel IN ('email','in_app','webhook')),
+    channel         NVARCHAR(20)      NOT NULL CHECK (channel IN ('email','in_app','webhook','sms','push')),
     subject         NVARCHAR(500)     NULL,        -- email only
     body_html       NVARCHAR(MAX)     NOT NULL,    -- Thymeleaf template
     body_text       NVARCHAR(MAX)     NULL,        -- plain-text fallback
     variables       NVARCHAR(MAX)     NULL,        -- JSON: variable definitions + descriptions
     is_system       BIT               NOT NULL DEFAULT 0,
+    is_mandatory    BIT               NOT NULL DEFAULT 0,  -- user cannot opt out; always delivered
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT uq_notif_tmpl_key UNIQUE (org_id, key, channel)
 );
@@ -312,14 +317,12 @@ type Notification {
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should users be able to opt out of system-required notifications (e.g., task assignments)? | High |
-| 2 | Multi-language templates? Requires i18n strategy. | Medium |
-| 3 | Should digest scheduling be per-user timezone or fixed UTC? | Medium |
-| 4 | Slack/Teams integrations: use webhooks (simpler) or dedicated OAuth apps (richer)? | Medium |
-| 5 | Volume limits: should high-frequency rule triggers be debounced to prevent notification spam? | High |
-
----
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should users be able to opt out of system-required notifications?~~ | High | **Resolved:** Templates with `is_mandatory = true` bypass user preferences. Users can opt out of non-mandatory templates only. |
+| 2 | Multi-language templates? Requires i18n strategy. | Medium | |
+| 3 | Should digest scheduling be per-user timezone or fixed UTC? | Medium | |
+| 4 | Slack/Teams integrations: use webhooks (simpler) or dedicated OAuth apps (richer)? | Medium | |
+| 5 | Volume limits: should high-frequency rule triggers be debounced to prevent notification spam? | High | |
 
 *Previous: [09 — Audit Log & Versioning](09-audit-versioning.md) | Next: [11 — Search & Discovery](11-search-discovery.md)*

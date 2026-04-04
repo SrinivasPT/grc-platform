@@ -170,6 +170,8 @@ When a policy is published with `acknowledgment_required = true`:
 2. Send acknowledgment request notifications (email + in-app)
 3. Track acknowledgment per user per policy version
 4. Reminder notifications for non-responders at 7-day and 14-day intervals
+5. **Auto re-acknowledgment:** When a policy is updated to a new version, all previously-acknowledged users must re-acknowledge the new version. A new `acknowledgment_campaign` is automatically created. The 7/14-day escalation sequence restarts.
+6. **Manager escalation:** If a user does not acknowledge within 21 days, an escalation notification is sent to their direct manager (resolved via the org unit hierarchy from Module 26).
 
 **Acknowledgment Campaign tracking:**
 
@@ -183,6 +185,7 @@ CREATE TABLE acknowledgment_campaigns (
                     CHECK (target_type IN ('all_users','role','org_unit','custom_list')),
     target_ids      NVARCHAR(MAX)     NULL,      -- JSON: list of role/unit IDs
     due_date        DATE              NOT NULL,
+    escalation_date DATE              NULL,      -- date when manager escalation triggers (due_date + 21 days)
     total_targets   INT               NOT NULL DEFAULT 0,
     completed_count INT               NOT NULL DEFAULT 0,
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME()
@@ -244,12 +247,12 @@ RETURN cr
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should policy documents be managed as files (attachments) or as rich-text within the platform? | High |
-| 2 | Policy exception workflow: employees request exceptions from a policy — is this its own module? | Medium |
-| 3 | Should acknowledgment campaigns support custom expiry (e.g., annual re-acknowledgment)? | Medium |
-| 4 | Watermarking of downloaded policy PDFs with user identity? (Legal/compliance requirement) | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should policy documents be managed as files (attachments) or as rich-text within the platform? | High | |
+| 2 | Policy exception workflow: employees request exceptions from a policy — is this its own module? | Medium | |
+| 3 | ~~Should acknowledgment campaigns support custom expiry / annual re-acknowledgment?~~ | Medium | **Resolved:** Auto re-acknowledgment on policy version update. Manager escalation after 21 days of non-response. See Section 6. |
+| 4 | Watermarking of downloaded policy PDFs with user identity? | Low | |
 
 ---
 

@@ -73,12 +73,21 @@ CREATE TABLE compliance_requirements (
     guidance        NVARCHAR(MAX)     NULL,
     is_leaf         BIT               NOT NULL DEFAULT 1,  -- false = section/group header
     sort_order      INT               NOT NULL DEFAULT 0,
+    risk_weight     INT               NOT NULL DEFAULT 50  -- 0-100: importance for weighted coverage %
+                    CHECK (risk_weight BETWEEN 0 AND 100),
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT uq_req_framework_number UNIQUE (framework_id, req_number)
 );
 
 CREATE INDEX ix_reqs_framework ON compliance_requirements(framework_id, parent_id);
 ```
+
+**Weighted coverage formula** used in compliance reports (see Module 12):
+```
+weighted_coverage = SUM(req.risk_weight where has_effective_control) / SUM(all req.risk_weight)
+```
+
+This prevents a report of "95% compliant" when the 5% gap is on the most critical requirements.
 
 ### 3.3 Organization Compliance Programs
 
@@ -252,12 +261,12 @@ This prevents duplicate remediation work and reveals where a single control inve
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should system-level frameworks be updateable by platform admins (not org admins)? | High |
-| 2 | How to handle jurisdiction-specific appendices (e.g., GDPR + CCPA on same base standard)? | Medium |
-| 3 | Automated compliance scoring from control effectiveness vs. manual assessment — which takes precedence? | Design |
-| 4 | Should compliance programs be shareable across organizations? (Multi-org holding companies) | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should system-level frameworks be updateable by platform admins (not org admins)? | High | |
+| 2 | ~~How to handle jurisdiction-specific appendices?~~ | Medium | **Resolved (Post-MVP):** A **version diff tool** for imported frameworks highlights changed/added/removed requirements when a framework is re-imported. For jurisdiction-specific appendices, each jurisdiction variant is imported as a separate framework (e.g., `ISO27001:2022-EU`, `ISO27001:2022-US`) with shared base structure. Single-bank = single jurisdiction; this is a future concern. |
+| 3 | Automated compliance scoring from control effectiveness vs. manual assessment — which takes precedence? | Design | |
+| 4 | Should compliance programs be shareable across organizations? | Low | N/A — single bank deployment. |
 
 ---
 

@@ -91,6 +91,24 @@ Effectiveness is calculated based on test history and automation level:
 | < 40 | Ineffective | Control is not operating; risk is unmitigated |
 | No test in 12 months | Not Assessed | Cannot determine effectiveness |
 
+### 4.1 Compensating Controls and Partial Credit
+
+When a primary control is not feasible, a **compensating control** can be assigned. Compensating controls receive **partial credit** in the effectiveness score calculation:
+
+```sql
+ALTER TABLE records ADD
+    compensating_control_ids NVARCHAR(MAX) NULL,  -- JSON: [uuid, ...]
+    compensating_credit_pct  INT           NULL;  -- 0–100; how much credit toward primary effectiveness
+```
+
+Effectiveness scoring formula when compensating controls exist:
+```
+effective_score = (primary_control_score × primary_weight)
+                + (sum(compensating_scores) × (compensating_credit_pct / 100) × compensating_weight)
+```
+
+A compensating control's partial credit is capped at 60% of the primary control's weight — a compensating control alone can never give a rating of "Effective".
+
 ---
 
 ## 5. Control Testing
@@ -106,6 +124,7 @@ Control tests are child records of a Control, capturing each test event:
 | `test_method` | Test Method | value_list: inspection, interview, observation, reperformance |
 | `population_size` | Population Size | number |
 | `sample_size` | Sample Size | number |
+| `sampling_method` | Sampling Method | value_list: random, judgmental, systematic, haphazard |
 | `exceptions_count` | Exceptions Found | number |
 | `exception_description` | Exception Details | rich_text |
 | `evidence` | Test Evidence | attachment |
@@ -206,12 +225,12 @@ ORDER BY r.residual_score DESC
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should control inheritance work across org units (parent unit shares control down)? | Medium |
-| 2 | SOC 2 Type II: should test populations/samples be stored for audit evidence? | High |
-| 3 | Should compensating controls be tracked separately vs. just typed? | Medium |
-| 4 | Continuous control monitoring: automated evidence collection from APIs (log counts, etc.)? | Future |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should control inheritance work across org units (parent unit shares control down)? | Medium | |
+| 2 | ~~SOC 2 Type II: should test populations/samples be stored for audit evidence?~~ | High | **Resolved:** Yes — `population_size`, `sample_size`, and `sampling_method` added to control test fields. See Section 5. |
+| 3 | ~~Should compensating controls be tracked?~~ | Medium | **Resolved:** Compensating controls tracked via `compensating_control_ids` FK array + `compensating_credit_pct`. Partial credit formula in Section 4.1. |
+| 4 | Continuous control monitoring: automated evidence collection from APIs? | Future | |
 
 ---
 

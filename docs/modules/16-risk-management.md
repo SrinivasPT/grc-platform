@@ -142,25 +142,40 @@ A scheduled job checks all active risks against their last_reviewed_at date and 
 
 ## 6. Risk Appetite
 
-Risk Appetite is defined organization-wide (and optionally per category) in an `org_settings` entry:
+Risk appetite thresholds are stored in a **dedicated first-class table** — not embedded in `org_settings`. This supports audit trail of appetite changes and per-category granularity:
 
-```json
-{
-  "risk_appetite": {
-    "global_threshold": 12,
-    "by_category": {
-      "Cybersecurity":  10,
-      "Regulatory":     6,
-      "Operational":    15
-    }
-  }
-}
+```sql
+CREATE TABLE risk_appetite_thresholds (
+    id              UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWSEQUENTIALID() PRIMARY KEY,
+    org_id          UNIQUEIDENTIFIER  NOT NULL,
+    category        NVARCHAR(200)     NULL,   -- NULL = global default
+    threshold_score INT               NOT NULL,
+    critical_multiplier DECIMAL(4,2)  NOT NULL DEFAULT 1.5, -- residual > threshold×1.5 = critical
+    effective_from  DATE              NOT NULL DEFAULT GETUTCDATE(),
+    effective_to    DATE              NULL,   -- NULL = currently active
+    created_by      UNIQUEIDENTIFIER  NOT NULL,
+    created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),
+    notes           NVARCHAR(1000)    NULL
+);
+-- Only one active (effective_to IS NULL) record per org_id+category
+CREATE UNIQUE INDEX uq_appetite_active
+    ON risk_appetite_thresholds(org_id, category)
+    WHERE effective_to IS NULL;
 ```
+
+Example thresholds:
+
+| Category | Threshold | Critical at |
+|----------|-----------|-------------|
+| Global (default) | 12 | 18 |
+| Cybersecurity | 10 | 15 |
+| Regulatory | 6 | 9 |
+| Operational | 15 | 22 |
 
 The `risk_appetite_alignment` calculated field compares `residual_score` to the applicable threshold:
 - `within_appetite`: residual_score ≤ threshold
 - `above_appetite`: residual_score > threshold (triggers mandatory treatment)
-- `critical_exceedance`: residual_score > threshold × 1.5 (triggers executive escalation)
+- `critical_exceedance`: residual_score > threshold × critical_multiplier (triggers executive escalation)
 
 ---
 
@@ -214,13 +229,13 @@ Each framework can be mapped via compliance requirements in the Compliance modul
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Quantitative risk scoring (FAIR model — financial loss estimates)? Complex but high value. | Medium |
-| 2 | Risk correlation: should highly correlated risks be grouped for aggregate reporting? | Medium |
-| 3 | Scenario analysis / Monte Carlo simulation for risk portfolio modeling? | Low — post-MVP |
-| 4 | Should residual score be allowed to exceed inherent score? (Can controls increase risk?) | Design |
-| 5 | Risk-to-risk relationships (parent risk → child risks / compound risks)? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Quantitative risk scoring (FAIR model)?~~ | Medium | **Resolved Post-MVP:** FAIR quantitative scoring deferred to post-MVP. The platform's current 5×5 matrix (qualitative) is the primary scoring method. A `fair_quantification` extension may be added as a supplementary calculation in a future release. |
+| 2 | Risk correlation: should highly correlated risks be grouped for aggregate reporting? | Medium | |
+| 3 | Scenario analysis / Monte Carlo simulation for risk portfolio modeling? | Low — post-MVP | |
+| 4 | Should residual score be allowed to exceed inherent score? (Can controls increase risk?) | Design | |
+| 5 | Risk-to-risk relationships (parent risk → child risks / compound risks)? | Medium | |
 
 ---
 

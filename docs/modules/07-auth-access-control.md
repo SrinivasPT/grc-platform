@@ -25,6 +25,56 @@ This module defines how users are authenticated, how their identity is establish
 
 **SAML 2.0 and OIDC are mandatory for production enterprise deployments.** Local authentication may be disabled per org via `org_settings`.
 
+### 2.1a Multi-Factor Authentication (MFA)
+
+MFA is **mandatory for all local accounts** in a banking environment. SSO-provided MFA (via Azure AD, Okta, PingIdentity) satisfies this requirement; the platform trusts the IdP's authentication assurance level.
+
+For local accounts (dev/test or fallback):
+
+| Method | Support | Notes |
+|--------|---------|-------|
+| TOTP (RFC 6238) | **Mandated** | Google Authenticator, Authy, any TOTP app |
+| WebAuthn / FIDO2 | Supported | Hardware keys; phishing-resistant |
+| Email OTP | Discouraged | Only for password reset flows |
+| SMS OTP | Not supported | SMS is not considered secure for banking |
+
+MFA enforcement rules:
+- All local accounts must enroll TOTP before first login completes
+- `user_settings.mfa_enrolled = false` results in redirect to TOTP setup page on every login
+- Bypass is not available; org-level `org_settings.mfa_required = true` is hardcoded for banking
+
+```sql
+ALTER TABLE users ADD
+    mfa_secret_encrypted  NVARCHAR(500) NULL,  -- AES-256 encrypted TOTP secret
+    mfa_enrolled          BIT NOT NULL DEFAULT 0,
+    mfa_backup_codes      NVARCHAR(MAX) NULL;  -- JSON: encrypted backup codes
+```
+
+### 2.1a Multi-Factor Authentication (MFA)
+
+MFA is **mandatory for all local accounts** in a banking environment. SSO-provided MFA (via Azure AD, Okta, PingIdentity) satisfies this requirement; the platform trusts the IdP's authentication assurance level.
+
+For local accounts (dev/test or fallback):
+
+| Method | Support | Notes |
+|--------|---------|-------|
+| TOTP (RFC 6238) | **Mandated** | Google Authenticator, Authy, any TOTP app |
+| WebAuthn / FIDO2 | Supported | Hardware keys; phishing-resistant |
+| Email OTP | Discouraged | Only for password reset flows |
+| SMS OTP | Not supported | SMS is not considered secure for banking |
+
+MFA enforcement rules:
+- All local accounts must enroll TOTP before first login completes
+- `user_settings.mfa_enrolled = false` results in redirect to TOTP setup page on every login
+- Bypass is not available; org-level `org_settings.mfa_required = true` is hardcoded for banking
+
+```sql
+ALTER TABLE users ADD
+    mfa_secret_encrypted  NVARCHAR(500) NULL,  -- AES-256 encrypted TOTP secret
+    mfa_enrolled          BIT NOT NULL DEFAULT 0,
+    mfa_backup_codes      NVARCHAR(MAX) NULL;  -- JSON: encrypted backup codes
+```
+
 ### 2.2 JWT Token Design
 
 Tokens are issued by the platform's auth endpoint after successful identity validation. Short-lived access tokens + longer-lived refresh tokens:
@@ -383,13 +433,13 @@ public class RecordService {
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should MFA (TOTP) be supported for local accounts? | Medium |
-| 2 | IP allowlisting per org — requirement for high-security deployments? | Medium |
-| 3 | Should field-level permissions be evaluated on every record in list queries? (Performance impact) | High |
-| 4 | Cross-org data sharing (for orgs in the same corporate group)? | Future |
-| 5 | Should API keys support expiry and rotation reminders? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should MFA (TOTP) be supported for local accounts?~~ | Medium | **Resolved:** MFA is **mandatory** for all local accounts (TOTP via RFC 6238). See Section 2.1a. |
+| 2 | IP allowlisting per org — requirement for high-security deployments? | Medium | |
+| 3 | Should field-level permissions be evaluated on every record in list queries? (Performance impact) | High | |
+| 4 | Cross-org data sharing (for orgs in the same corporate group)? | Future | |
+| 5 | Should API keys support expiry and rotation reminders? | Medium | |
 
 ---
 

@@ -113,37 +113,56 @@ Closed:
 
 ---
 
-## 5. GDPR Breach Notification (72-Hour Timer)
+## 5. Multi-Jurisdiction Breach Notification
 
-For incidents involving personal data of EU residents, GDPR Article 33 requires notification to supervisory authority within 72 hours of becoming aware.
+For incidents involving personal data, **multiple regulatory frameworks** may require simultaneous notification with different deadlines:
 
-The platform:
-1. When `incident_type = privacy` AND `individuals_affected > 0` AND `impact_category CONTAINS Confidentiality`:
-   - Sets `regulatory_notification = true`
-   - Sets `notification_deadline = discovery_date + 72 hours`
-2. At 48 hours from discovery: alert incident commander "24 hours remaining for GDPR notification"
-3. At 68 hours: critical escalation to CISO and DPO
-4. After 72 hours with `notification_sent_at = null`: SLA breach logged and escalated
+| Regulation | Jurisdiction | Deadline | Recipient |
+|-----------|-------------|---------|-----------|
+| GDPR Art. 33 | EU | 72 hours | Supervisory Authority |
+| PDPA (Thailand) | TH | 72 hours | PDPC |
+| PIPL (China) | CN | Immediate / 10 days | CAC |
+| US State Laws (CCPA, NYDFS) | US | Expedient / 30–72 hours | AG / DFS |
+| Central Bank (local regs) | Varies | 24–48 hours | Banking regulator |
+
+The platform tracks each jurisdiction's notification obligation independently:
 
 ```sql
--- Regulatory notification deadlines view
-CREATE VIEW v_incident_notification_deadlines AS
-SELECT
-    i.id,
-    i.title,
-    i.severity,
-    i.discovery_date,
-    i.notification_deadline,
-    i.notification_sent_at,
-    DATEDIFF(HOUR, GETUTCDATE(), i.notification_deadline) AS hours_remaining,
-    CASE WHEN i.notification_sent_at IS NULL
-              AND i.notification_deadline < SYSUTCDATETIME()
-         THEN 1 ELSE 0 END AS is_overdue
-FROM incidents i
-WHERE i.regulatory_notification = 1
-  AND i.status NOT IN ('closed','false_positive')
-  AND i.notification_sent_at IS NULL;
+CREATE TABLE incident_notification_obligations (
+    id              UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWSEQUENTIALID() PRIMARY KEY,
+    org_id          UNIQUEIDENTIFIER  NOT NULL,
+    incident_id     UNIQUEIDENTIFIER  NOT NULL,
+    jurisdiction    NVARCHAR(100)     NOT NULL,   -- 'GDPR', 'NYDFS', 'PDPA', etc.
+    regulation_ref  NVARCHAR(200)     NULL,        -- e.g. 'GDPR Art. 33'
+    deadline        DATETIME2         NOT NULL,
+    recipient       NVARCHAR(500)     NULL,        -- name of regulatory body
+    status          NVARCHAR(50)      NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending','submitted','acknowledged','waived','not_required')),
+    submitted_at    DATETIME2         NULL,
+    submission_ref  NVARCHAR(500)     NULL,        -- confirmation/reference number
+    evidence_file   UNIQUEIDENTIFIER  NULL,        -- FK to record_attachments (submission proof)
+    notes           NVARCHAR(2000)    NULL
+);
+CREATE INDEX idx_notif_incident ON incident_notification_obligations(incident_id, deadline);
 ```
+
+Notification deadlines are calculated from `discovery_date` when an incident is flagged as a privacy breach. The system generates one `incident_notification_obligations` row per applicable jurisdiction (configured in `org_settings.applicable_jurisdictions`).
+
+Escalation rules:
+- At 50% of deadline remaining: notify incident commander
+- At 80% of deadline remaining: critical alert to CISO and DPO
+- After deadline with `status = 'pending'`: SLA breach logged and escalated to regulators
+
+### 5.1 Incident Timeline Audit Linkage
+
+Every `incident_timeline` entry is linked to the corresponding `audit_log` entry to create a tamper-evident chain of evidence:
+
+```sql
+ALTER TABLE incident_timeline ADD
+    audit_log_id UNIQUEIDENTIFIER NULL REFERENCES audit_log(id);
+```
+
+When a timeline entry is created, the `auditService.logCreate()` result ID is stored in `audit_log_id`. This allows the regulatory investigator to trace every incident action to the audit chain.
 
 ---
 
@@ -208,13 +227,13 @@ The post-incident review produces action items that become:
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should the platform support a public incident reporting form (for external reports)? | Medium |
-| 2 | Integration with SIEM (Splunk, Sentinel) for auto-incident creation from alerts? | High |
-| 3 | War room / case collaboration tool — real-time chat during P1 incident? | Low |
-| 4 | Should breach notification letters be generated from templates within the platform? | Medium |
-| 5 | Multiple regulatory frameworks simultaneously (GDPR + HIPAA + State laws) for same incident? | High |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should the platform support a public incident reporting form (for external reports)? | Medium | |
+| 2 | Integration with SIEM (Splunk, Sentinel) for auto-incident creation from alerts? | High | |
+| 3 | War room / case collaboration tool — real-time chat during P1 incident? | Low | |
+| 4 | Should breach notification letters be generated from templates within the platform? | Medium | |
+| 5 | ~~Multiple regulatory frameworks simultaneously (GDPR + HIPAA + State laws) for same incident?~~ | High | **Resolved:** Yes — see Section 5. `incident_notification_obligations` table tracks one row per jurisdiction per incident. Org-configured `applicable_jurisdictions` drives which obligations are auto-generated. |
 
 ---
 

@@ -41,9 +41,11 @@ A `layout_definition.layout_config` JSON object fully specifies a form or view:
   },
   "tabs": [
     {
-      "key":   "details",
-      "label": "Details",
-      "icon":  "info-circle",
+      "key":         "details",
+      "label":       "Details",
+      "icon":        "info-circle",
+      "visible_roles": ["risk_manager", "risk_viewer", "admin"],
+      "visible_if":  null,
       "panels": [
         {
           "key":     "basic_info",
@@ -88,9 +90,11 @@ A `layout_definition.layout_config` JSON object fully specifies a form or view:
       ]
     },
     {
-      "key":      "controls",
-      "label":    "Linked Controls",
-      "lazy":     true,
+      "key":         "controls",
+      "label":       "Linked Controls",
+      "lazy":        true,
+      "visible_roles": ["risk_manager", "control_manager", "admin"],
+      "visible_if":  null,
       "content":  {
         "type":           "related_records",
         "relation_type":  "risk_controls",
@@ -209,6 +213,27 @@ Each field definition stores a `config` JSON object with field-type-specific opt
 
 ---
 
+## 6. Role-Based Tab and Panel Visibility
+
+Each tab and panel in the layout config supports two visibility controls:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `visible_roles` | `string[]` | If set, tab/panel is only shown to users with at least one of these roles. Omit to show to all roles. |
+| `visible_if` | rule DSL expression | If set, tab/panel is shown only when this rule expression evaluates to `true` (same DSL as Module 03 visibility rules). |
+
+Both conditions are checked on the **server** when generating the layout response for a user. The filtered layout JSON is sent to the client — the client never receives tabs/panels the user is not allowed to see. This prevents UI-only security bypass.
+
+```java
+// Server-side layout filtering before returning to client
+List<TabConfig> visibleTabs = layoutConfig.tabs().stream()
+    .filter(tab -> hasRequiredRole(currentUser, tab.visibleRoles()))
+    .filter(tab -> tab.visibleIf() == null || ruleEngine.evaluate(tab.visibleIf(), ctx).asBoolean())
+    .toList();
+```
+
+---
+
 ## 5. React Component Architecture
 
 ### 5.1 Component Tree
@@ -305,9 +330,18 @@ The client Rule Engine evaluates all `visibility` type rules on every field chan
 
 ## 7. Layout Editor (Admin)
 
-An admin-accessible Layout Editor provides a drag-and-drop interface for configuring layouts. It:
+An admin-accessible Layout Editor provides a **form-based interface** for configuring layouts for MVP. Drag-and-drop enhancement is deferred post-MVP.
+
+**MVP Layout Editor capabilities:**
+- Select which fields to include (choose from defined field list)
+- Set display order and column spans via number inputs
+- Assign fields to tabs and panels via dropdowns
+- Set `visible_roles` per tab/panel via a multi-select role picker
+- Set `visible_if` per tab/panel by selecting a rule from the rule picker
+
+It:
 - Reads the current `layout_config` JSON
-- Renders a visual editor (tabs, panels, fields as draggable items)
+- Renders a structured form editor (no JSON editing required by admins)
 - Saves changes to `layout_definitions` as a new version
 - Change is immediately live for all users (config cache invalidated)
 
@@ -369,13 +403,13 @@ In addition to `record_form`, the engine supports `list_view`:
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should the Layout Editor be built in MVP or deferred (admins editing JSON directly for MVP)? | High |
-| 2 | How to handle layout differences between `create` and `edit` modes for same application? | Medium |
-| 3 | Print/PDF layout — separate layout config or CSS print stylesheet? | Low |
-| 4 | Mobile/responsive layout — should panels stack vertically on small screens automatically? | Medium |
-| 5 | How to handle inline record creation (create a Control while editing a Risk)? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should the Layout Editor be built in MVP or deferred?~~ | High | **Resolved:** A form-based Layout Editor is included in MVP (no JSON editing). Drag-and-drop is deferred post-MVP. See Section 7. |
+| 2 | How to handle layout differences between `create` and `edit` modes for same application? | Medium | |
+| 3 | Print/PDF layout — separate layout config or CSS print stylesheet? | Low | |
+| 4 | Mobile/responsive layout — should panels stack vertically on small screens automatically? | Medium | |
+| 5 | How to handle inline record creation (create a Control while editing a Risk)? | Medium | |
 
 ---
 

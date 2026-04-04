@@ -172,6 +172,36 @@ When a vendor relationship ends, a structured offboarding workflow ensures:
 5. Final risk assessment marked as closed
 6. Vendor status changed to `terminated`
 
+The offboarding process is tracked as a **checklist workflow** with mandatory sign-off on each item:
+
+```sql
+CREATE TABLE vendor_offboarding_tasks (
+    id              UNIQUEIDENTIFIER  NOT NULL DEFAULT NEWSEQUENTIALID() PRIMARY KEY,
+    org_id          UNIQUEIDENTIFIER  NOT NULL,
+    vendor_id       UNIQUEIDENTIFIER  NOT NULL,
+    task_key        NVARCHAR(100)     NOT NULL,  -- 'data_deletion', 'access_revoke', etc.
+    task_label      NVARCHAR(255)     NOT NULL,
+    is_complete     BIT               NOT NULL DEFAULT 0,
+    completed_at    DATETIME2         NULL,
+    completed_by    UNIQUEIDENTIFIER  NULL REFERENCES users(id),
+    evidence_note   NVARCHAR(2000)    NULL,
+    evidence_file   UNIQUEIDENTIFIER  NULL  -- FK to record_attachments
+);
+```
+
+A vendor cannot be moved to `terminated` status until all mandatory offboarding tasks are complete (`is_complete = 1`). The system blocks this transition at the workflow level. A **Vendor Offboarding Summary** report is generated at completion for contract records.
+
+### 8.1 Vendor Portal REST APIs (Future)
+
+For future vendor self-service (vendors completing their own assessments):
+
+```
+POST /vendor-portal/v1/assessments/{token}/responses  — vendor submits assessment answers
+GET  /vendor-portal/v1/assessments/{token}            — vendor retrieves their pending assessment
+```
+
+These endpoints are **not part of MVP** — they use time-limited, single-use tokens and have no authentication beyond the token itself. Implementation is deferred until vendor portal UI is built.
+
 ---
 
 ## 9. Key Reports

@@ -211,6 +211,29 @@ The `${params.start_date}` syntax supports runtime parameterization — reports 
 }
 ```
 
+### 5.2 Row-Level Security (RLS) in Reports
+
+The reporting engine enforces RLS by injecting the user's org unit scope into every report query before execution. This prevents privilege escalation via reports.
+
+```java
+public ReportResult executeReport(UUID reportId, Map<String,Object> params, User currentUser) {
+    ReportDefinition def = reportRepository.findById(reportId);
+
+    // Inject RLS context — user can only see records in their accessible org units
+    List<UUID> accessibleOrgUnits = permissionService.getAccessibleOrgUnitIds(currentUser);
+
+    QueryBuilder qb = new ReportQueryBuilder(def, params)
+        .withOrgUnitFilter(accessibleOrgUnits)    // appended to all WHERE clauses
+        .withRecordPermissionFilter(currentUser);  // field-level visibility check
+
+    return queryExecutor.execute(qb.build());
+}
+```
+
+For **aggregate reports** (risk scores, compliance coverage), RLS is applied **before** aggregation — a user who cannot see a record cannot influence the aggregate count. This prevents data leakage via summary statistics.
+
+For **administrative reports** (platform statistics across all users), a separate `REPORT_ADMIN` permission bypasses org unit scoping.
+
 ---
 
 ## 6. Risk Heat Map
@@ -240,6 +263,7 @@ Reports can be exported in three formats:
 | PDF | Formal reports for executives/auditors | iText 8 or JasperReports |
 | Excel (.xlsx) | Data analysis by business users | Apache POI |
 | CSV | Data import into other tools | Standard CSV writer |
+| XBRL | Regulatory filings (Basel, COREP, FINREP) | Custom XBRL adapter (see Module 27) |
 
 Exports are generated **asynchronously** for large result sets:
 
@@ -347,13 +371,13 @@ The platform ships with a library of pre-built reports that cover common GRC rep
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should dashboards support drill-down (click a chart bar → filtered record list)? | High |
-| 2 | Row-level security on reports: should record-level access rules filter report results? | High |
-| 3 | Should reports be embeddable (iFrame) for external portals? | Low |
-| 4 | Real-time vs snapshot dashboards? (Real-time requires polling or subscription per widget) | Medium |
-| 5 | Should trend reports use `record_versions` snapshots or the audit log for historical data? | Design |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should dashboards support drill-down (click a chart bar → filtered record list)? | High | |
+| 2 | ~~Row-level security on reports?~~ | High | **Resolved:** RLS enforced at report query execution time. See Section 5.2 — org unit scope injected before aggregation. `REPORT_ADMIN` permission bypasses scoping. |
+| 3 | Should reports be embeddable (iFrame) for external portals? | Low | |
+| 4 | ~~Real-time vs snapshot dashboards?~~ | Medium | **Resolved:** Snapshot with manual refresh button for MVP. Dashboards display a `Last refreshed: X minutes ago` label. On-demand refresh triggers a new query. Real-time polling deferred post-MVP. |
+| 5 | Should trend reports use `record_versions` snapshots or the audit log for historical data? | Design | |
 
 ---
 

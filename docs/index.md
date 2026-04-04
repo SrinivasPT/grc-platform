@@ -178,6 +178,8 @@ Modules are organized into three tiers. **Each module is independently designed,
 | 23 | [Business Continuity](modules/23-business-continuity.md) | BCP/DR plans, BIA, testing schedules, RTO/RPO tracking |
 | 24 | [Vulnerability Management](modules/24-vulnerability-management.md) | Vulnerability tracking, CVSS scoring, remediation SLAs, scanner integration |
 | 25 | [Assessment & Questionnaire](modules/25-assessment-questionnaire.md) | Configurable questionnaires, bulk dispatch, scoring, response tracking |
+| 26 | [Organizational Hierarchy](modules/26-org-hierarchy.md) | `organization_units` tree, materialized paths, user-unit membership, access scoping, manager chain resolution |
+| 27 | [Regulatory Reporting](modules/27-regulatory-reporting.md) | XBRL/COREP/FINREP/Basel III report templates, auto-population from GRC data, sign-off workflow, submission history |
 
 ---
 

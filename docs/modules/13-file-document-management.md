@@ -130,6 +130,39 @@ public interface VirusScanAdapter {
 | `scan_failed` | Retried 3×; after failure, admin notified; file held pending |
 | `skipped` | Scanning disabled (dev mode only) |
 
+### 5.1 Periodic Re-scan (On Access)
+
+Files are re-scanned on access if the existing scan result is older than 7 days. This ensures that a file scanned as `clean` with an outdated AV signature does not stay accessible indefinitely.
+
+When re-scan is triggered on download request:
+1. Return `202 Accepted` with `Retry-After: 30` header instead of the download URL.
+2. Trigger async re-scan job.
+3. Client receives a toast: "File is being re-scanned for security. Please retry in a moment."
+
+```java
+public String generateDownloadUrl(UUID fileId, UUID requestingUserId, UUID orgId) {
+    RecordAttachment attachment = getAndAuthorize(fileId, requestingUserId, orgId);
+
+    if (attachment.scanStatus() == ScanStatus.INFECTED) {
+        throw new ForbiddenException("File is quarantined");
+    }
+
+    // Re-scan if scan result is stale (> 7 days)
+    Duration scanAge = Duration.between(attachment.lastScannedAt(), Instant.now());
+    if (scanAge.toDays() > 7 && attachment.scanStatus() == ScanStatus.CLEAN) {
+        asyncVirusScanService.scheduleScan(attachment.id());
+        throw new FileRescanRequiredException(attachment.id()); // → 202 Accepted
+    }
+
+    return storageAdapter.generateSignedUrl(attachment.storagePath(), Duration.ofMinutes(5));
+}
+```
+
+Add column to `record_attachments`:
+```sql
+ALTER TABLE record_attachments ADD last_scanned_at DATETIME2 NULL;
+```
+
 ---
 
 ## 6. Download — Signed URL
@@ -198,11 +231,14 @@ CREATE TABLE record_attachments (
     record_id       UNIQUEIDENTIFIER  NOT NULL REFERENCES records(id),
     field_def_id    UNIQUEIDENTIFIER  NULL,         -- NULL = general (not field-specific)
     original_name   NVARCHAR(500)     NOT NULL,
+    -- storage_path format: {orgId}/{appKey}/{recordId}/{fileId}/{version}/{sanitizedFilename}
+    -- e.g. "a1b2c3d4…/{appKey}/e5f6…/v1/contract_draft.pdf"
     storage_path    NVARCHAR(2000)    NOT NULL,
     mime_type       NVARCHAR(200)     NOT NULL,
     file_size_bytes BIGINT            NOT NULL,
     checksum_sha256 NCHAR(64)         NOT NULL,
     scan_status     NVARCHAR(20)      NOT NULL DEFAULT 'pending',
+    last_scanned_at DATETIME2         NULL,         -- updated after each scan
     version         INT               NOT NULL DEFAULT 1,
     is_deleted      BIT               NOT NULL DEFAULT 0,
     created_at      DATETIME2         NOT NULL DEFAULT SYSUTCDATETIME(),

@@ -210,6 +210,23 @@ Retrieve a value from another record or value list item:
 }
 ```
 
+#### 4.2.11 Cross-Record Uniqueness (Server-Side Only)
+
+Validates that no other record in the same application has the same value for a given field:
+
+```json
+{
+  "unique_cross_record": {
+    "field": "title",
+    "scope": "application",          // "application" | "org_unit" | "category_group"
+    "exclude_self": true,            // ignore the current record's own value
+    "error_message": "A risk with this title already exists"
+  }
+}
+```
+
+This executes a parameterized SQL `EXISTS` check against the `field_values_text` table, scoped by `org_id` and `application_id`. It is **server-side only** — client-side evaluation will skip and defer to the server.
+
 ---
 
 ## 5. Full Rule Examples
@@ -403,6 +420,76 @@ The rule engine is designed for **isomorphic execution** — the same rule DSL r
 
 ---
 
+## 7a. Security: Strict AST Deserialization (Checkmarx Compliance)
+
+The Rule Engine JSON DSL is loaded from the database and evaluated. This is a **high-risk deserialization surface** that must be hardened to prevent injection attacks.
+
+### 7a.1 No Polymorphic Deserialization
+
+Jackson's default `ObjectMapper` is **never used** to deserialize the rule DSL. Polymorphic typing (`@JsonTypeInfo`, `enableDefaultTyping()`) is explicitly disabled globally:
+
+```java
+@Configuration
+public class JacksonConfig {
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        // Explicitly disable polymorphic type handling — critical for SAST compliance
+        mapper.deactivateDefaultTyping();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);
+        return mapper;
+    }
+}
+```
+
+### 7a.2 Bounded AST Parser
+
+The DSL JSON is **never deserialized into a generic `Map<String, Object>`** at evaluation time. Instead, it is parsed into a strictly typed AST via a custom parser:
+
+```java
+public class RuleDslParser {
+    private static final Set<String> ALLOWED_OPS = Set.of(
+        "literal", "field",
+        "+", "-", "*", "/", "%", "pow", "abs", "round", "floor", "ceil",
+        "eq", "neq", "gt", "gte", "lt", "lte", "in", "not_in", "is_null", "not_null",
+        "and", "or", "not", "if",
+        "concat", "upper", "lower", "trim", "length", "contains", "starts_with", "matches",
+        "date_diff_days", "date_add_days", "date_add_months", "year", "month", "day",
+        "aggregate", "lookup", "unique_cross_record"
+    );
+
+    public Expression parse(JsonNode node) {
+        // 1. Depth limit: reject ASTs deeper than MAX_DEPTH (default: 20)
+        // 2. Op allowlist: reject any key not in ALLOWED_OPS
+        // 3. Typed construction: builds sealed Expression records — no generic objects
+        // 4. Throws RuleDslValidationException for any violation
+    }
+}
+```
+
+### 7a.3 Config-Save Validation
+
+Rule DSL is **validated at config-save time**, not at evaluation time. A valid rule DSL must pass through `RuleDslValidator` before being written to `rule_definitions.rule_dsl`. Invalid rules are rejected with a structured error response — they never reach the database.
+
+### 7a.4 Execution Timeout
+
+Every rule evaluation is subject to a configurable timeout to prevent DoS via deeply recursive rules:
+
+```java
+// rule_definitions table: add timeout_ms column
+ALTER TABLE rule_definitions ADD timeout_ms INT NOT NULL DEFAULT 500;
+
+// Enforced during evaluation
+public RuleResult evaluateWithTimeout(RuleDefinition rule, EvaluationContext ctx) {
+    return CompletableFuture
+        .supplyAsync(() -> ruleEngine.evaluate(rule, ctx), virtualThreadExecutor)
+        .orTimeout(rule.getTimeoutMs(), TimeUnit.MILLISECONDS)
+        .exceptionally(ex -> RuleResult.timeout(rule.getId(), rule.getTimeoutMs()));
+}
+```
+
+---
+
 ## 8. Java Implementation Design
 
 ### 8.1 Package Structure
@@ -561,13 +648,13 @@ Aggregation rules are integration-tested against a real SQL Server instance (in-
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should there be a `formula_builder` UI for non-technical admin users? | Medium |
-| 2 | How to handle rule failures gracefully — fail open or fail closed? | High |
-| 3 | Maximum expression depth (to prevent DoS via deeply nested rules)? Default: 20 levels. | Medium |
-| 4 | Should `notification_trigger` rules be in this engine or in the Notification module's engine? | Design |
-| 5 | Support for running aggregations asynchronously on large datasets? | Future |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should there be a `formula_builder` UI for non-technical admin users? | Medium | |
+| 2 | How to handle rule failures gracefully — fail open or fail closed? | High | **Default: fail closed** (validation errors block save; calculation errors store `null` and log error). |
+| 3 | ~~Maximum expression depth (to prevent DoS via deeply nested rules)?~~ | Medium | **Resolved:** `MAX_DEPTH = 20` levels. Enforced by `RuleDslParser` at config-save and evaluation time. |
+| 4 | Should `notification_trigger` rules be in this engine or in the Notification module's engine? | Design | |
+| 5 | Support for running aggregations asynchronously on large datasets? | Future | |
 
 ---
 

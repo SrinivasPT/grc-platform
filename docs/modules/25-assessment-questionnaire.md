@@ -188,6 +188,58 @@ For vendor assessments, the respondent receives a link — they do **not** need 
 - Each token is single-use per response (token invalidated after submission)
 - Rate limiting: max 20 requests per token per minute
 
+### 6.1 Respondent Identity Verification (High-Risk Assessments)
+
+For assessments flagged as `high_risk = true` (e.g., critical infrastructure vendor assessments, regulatory self-assessments), additional identity verification is required before the respondent can submit:
+
+| Method | Description |
+|--------|-------------|
+| **Email domain validation** | Respondent must be at the expected vendor domain. The `invitation_email` domain is checked against `campaign.expected_respondent_domain`. |
+| **Shared secret** | A 6-digit pin included separately from the access link (sent via a different channel — phone call). Must be entered before access is granted. |
+| **IP logging** | Respondent's IP address is recorded with every page load and on submission. Stored in `assessment_responses.respondent_ip`. |
+
+```sql
+ALTER TABLE assessment_campaigns ADD
+    high_risk                BIT NOT NULL DEFAULT 0,
+    expected_respondent_domain NVARCHAR(255) NULL,
+    require_shared_secret    BIT NOT NULL DEFAULT 0;
+
+ALTER TABLE assessment_responses ADD
+    respondent_ip            NVARCHAR(45) NULL,
+    identity_verified_at     DATETIME2    NULL,
+    identity_verification_method NVARCHAR(50) NULL;
+```
+
+### 6.2 Server-Side Branching Validation
+
+Branching logic (showing/hiding questions based on previous answers) is executed **both client-side** (UX) and **server-side** (on submission validation). This prevents respondents from submitting answers to hidden questions or skipping mandatory questions by manipulating the browser:
+
+```java
+@Service
+public class AssessmentSubmissionValidator {
+    public void validate(AssessmentResponse response, QuestionnaireDefinition def,
+                         Map<String, Object> answers) {
+        Set<String> visibleQuestions = branchingEngine.computeVisibleQuestions(def, answers);
+
+        // Reject answers for questions that should be hidden
+        for (String answeredKey : answers.keySet()) {
+            if (!visibleQuestions.contains(answeredKey)) {
+                throw new SubmissionValidationException(
+                    "Answer provided for hidden question: " + answeredKey);
+            }
+        }
+
+        // Require answers for mandatory visible questions
+        for (QuestionDefinition q : def.getMandatoryQuestions()) {
+            if (visibleQuestions.contains(q.getKey()) && !answers.containsKey(q.getKey())) {
+                throw new SubmissionValidationException(
+                    "Required question not answered: " + q.getKey());
+            }
+        }
+    }
+}
+```
+
 ---
 
 ## 7. Scoring Engine
@@ -279,13 +331,13 @@ Additional questionnaires can be built using the questionnaire designer UI.
 
 ## 12. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should the questionnaire designer have a UI builder or just JSON editing? | High |
-| 2 | Should branching logic be executed client-side only, or validated server-side too? | High |
-| 3 | Should response evidence (attachments) be downloadable in bulk? (Evidence package) | Medium |
-| 4 | Should questionnaires support multiple response languages? (Vendor localization) | Medium |
-| 5 | Standardized format import: can we import CAIQ (CSV/Excel format)? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should the questionnaire designer have a UI builder or just JSON editing? | High | |
+| 2 | ~~Should branching logic be executed client-side only, or validated server-side too?~~ | High | **Resolved:** Both. Client-side for UX; server-side validation on submission rejects answers for hidden questions and enforces mandatory visible questions. See Section 6.2. |
+| 3 | Should response evidence (attachments) be downloadable in bulk? (Evidence package) | Medium | |
+| 4 | Should questionnaires support multiple response languages? (Vendor localization) | Medium | |
+| 5 | Standardized format import: can we import CAIQ (CSV/Excel format)? | Medium | |
 
 ---
 

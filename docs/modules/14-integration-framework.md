@@ -137,6 +137,46 @@ CREATE TABLE integration_configurations (
 
 External systems can push data into the GRC platform via the integration REST API:
 
+### 5.0 SCIM 2.0 User Provisioning
+
+The platform exposes a **SCIM 2.0** endpoint for automated user lifecycle management from the bank's HR system (e.g., Workday, SAP SuccessFactors):
+
+```
+Base URL: /scim/v2/
+
+Supported Resources:
+  GET    /Users                  — list users (paginated)
+  GET    /Users/{id}             — get user by SCIM ID
+  POST   /Users                  — provision new user
+  PUT    /Users/{id}             — replace user attributes
+  PATCH  /Users/{id}             — update user attributes (RFC 7644)
+  DELETE /Users/{id}             — deprovision / deactivate user
+
+  GET    /Groups                 — list groups (mapped to GRC roles)
+  PATCH  /Groups/{id}            — add/remove group members
+```
+
+**Key behaviors:**
+
+| Event | GRC Behavior |
+|-------|-------------|
+| New employee (HR → SCIM POST) | Create user account, assign default role based on department |
+| Department change (SCIM PATCH) | Update `dept_code`, re-evaluate org unit mapping |
+| Termination (SCIM DELETE / `active: false`) | **Immediate** account deactivation, all active sessions revoked, pending workflow tasks reassigned to manager |
+
+**HR Department → GRC Org Unit Mapping:**
+
+A `hr_dept_to_org_unit` mapping table maps the HR department code from the SCIM user's `department` attribute to a GRC org unit:
+
+```sql
+CREATE TABLE hr_dept_orgunit_mappings (
+    hr_dept_code   NVARCHAR(100) NOT NULL PRIMARY KEY,
+    org_unit_id    UNIQUEIDENTIFIER NOT NULL REFERENCES organization_units(id)
+);
+```
+
+SCIM requests are authenticated via a dedicated API key with the `SCIM_PROVISIONER` system role (not a human user account). The SCIM endpoint is separate from the standard integration API and rate-limited to 100 operations/minute.
+
 ### 5.1 Inbound Webhook
 
 ```
@@ -304,13 +344,13 @@ type ConnectionTestResult {
 
 ## 10. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | SCIM 2.0 support for automated user provisioning? | High |
-| 2 | Should connectors be installable as plugins (JAR files) or only built-in? | Medium |
-| 3 | Rate limits for inbound integration API? (Protection against flooding) | High |
-| 4 | Bi-directional sync conflict resolution: who wins — GRC or external system? | High |
-| 5 | GraphQL API exposure for external integrators: separate endpoint or same? | Medium |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~SCIM 2.0 support for automated user provisioning?~~ | High | **Resolved:** SCIM 2.0 endpoint implemented. See Section 5.0 — HR dept → org unit mapping, auto-deactivation on termination. |
+| 2 | Should connectors be installable as plugins (JAR files) or only built-in? | Medium | |
+| 3 | Rate limits for inbound integration API? | High | SCIM rate-limited to 100 ops/min. Standard API rate limits from Module 04 apply. |
+| 4 | Bi-directional sync conflict resolution: who wins — GRC or external system? | High | |
+| 5 | GraphQL API exposure for external integrators: separate endpoint or same? | Medium | |
 
 ---
 

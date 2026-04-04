@@ -210,6 +210,8 @@ CREATE TABLE records (
     application_id  UNIQUEIDENTIFIER  NOT NULL REFERENCES applications(id),
     record_number   INT               NOT NULL,  -- org-scoped sequential number per app
     display_name    NVARCHAR(500)     NULL,       -- computed summary title
+    display_number  AS (app.prefix + RIGHT('0000000' + CAST(record_number AS NVARCHAR), 7)) PERSISTED,
+                                                  -- formatted: e.g. RISK-0000042, POL-0000007
     status          NVARCHAR(50)      NOT NULL DEFAULT 'active',
     workflow_state  NVARCHAR(100)     NULL,       -- current workflow state
     version         INT               NOT NULL DEFAULT 1,  -- optimistic concurrency
@@ -471,6 +473,26 @@ ALTER TABLE records ADD computed_values NVARCHAR(MAX) NULL;
 -- { "risk_score": 12, "control_effectiveness": 87.5, "residual_risk": 1.44 }
 ```
 
+### 6.1 Materialized Computed Columns for Filtering
+
+The `computed_values` JSON column cannot be indexed directly. Frequently filtered computed fields **must be materialized as persisted computed columns** for query performance:
+
+```sql
+-- Materialize high-frequency filter fields as persisted columns on records
+ALTER TABLE records ADD
+    risk_score            AS CAST(JSON_VALUE(computed_values, '$.risk_score') AS DECIMAL(10,4)) PERSISTED,
+    residual_risk_score   AS CAST(JSON_VALUE(computed_values, '$.residual_risk_score') AS DECIMAL(10,4)) PERSISTED,
+    control_effectiveness AS CAST(JSON_VALUE(computed_values, '$.control_effectiveness') AS DECIMAL(10,4)) PERSISTED;
+
+-- Index the materialized columns
+CREATE INDEX idx_records_risk_score ON records(org_id, application_id, risk_score)
+    WHERE is_deleted = 0;
+CREATE INDEX idx_records_effectiveness ON records(org_id, application_id, control_effectiveness)
+    WHERE is_deleted = 0;
+```
+
+> **Rule:** Any computed field used in a dashboard filter, report sort, or heat map query must be persisted and indexed. The `field_definitions` table includes a `materialize_as_column BIT NOT NULL DEFAULT 0` flag to signal this requirement.
+
 ---
 
 ## 7. Optimistic Concurrency
@@ -552,13 +574,13 @@ Rules:
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should `computed_values` be materialized as a separate table for indexability? | Medium |
-| 2 | Strategy for very large text fields (policy body > 1MB)? Store in blob with pointer? | Medium |
-| 3 | Partitioning strategy for `field_values_text` at scale (100M+ rows)? | High |
-| 4 | Should `audit_log` use temporal tables (SQL Server `SYSTEM_TIME`) vs custom implementation? | Medium |
-| 5 | Record number format: global sequence per app, or per-org per-app? Format: `RISK-00042`? | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should `computed_values` be materialized as a separate table for indexability?~~ | Medium | **Resolved:** Frequently filtered computed fields are materialized as persisted computed columns on the `records` table (e.g., `risk_score`, `control_effectiveness`). See Section 6.1. |
+| 2 | Strategy for very large text fields (policy body > 1MB)? Store in blob with pointer? | Medium | |
+| 3 | Partitioning strategy for `field_values_text` at scale (100M+ rows)? | High | |
+| 4 | Should `audit_log` use temporal tables (SQL Server `SYSTEM_TIME`) vs custom implementation? | Medium | |
+| 5 | ~~Record number format: global sequence per app, or per-org per-app?~~ | Low | **Resolved:** Per-org per-app sequential number; `display_number` computed column applies app-specific prefix (e.g., `RISK-0000042`). See `records.display_number`. |
 
 ---
 

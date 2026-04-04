@@ -268,6 +268,44 @@ Search results include **facets** — aggregate counts by filterable field value
 
 Facets are computed via SQL `GROUP BY` on the filter result set (before pagination is applied).
 
+### 8.1 High-Cardinality Facets
+
+For fields with many distinct values (e.g., `owner_user`, `vendor_name`), returning all distinct values in a facet is impractical. Fields with > 20 distinct values in the result set are **truncated to the top 20** by frequency, with a `hasMore: true` flag in the response:
+
+```graphql
+type SearchFacet {
+  fieldKey:   String!
+  fieldName:  String!
+  values:     [FacetValue!]!  # limited to 20
+  hasMore:    Boolean!         # true if total distinct values > 20
+  totalCount: Int!             # total distinct value count
+}
+```
+
+When `hasMore = true`, the UI renders a searchable typeahead input for that facet instead of a checkbox list.
+
+---
+
+## 8a. Field-Level Permission Filtering
+
+Search results must respect field-level read permissions. The search engine returns record IDs first, then field-level permissions are applied as a post-filter before returning results to the caller:
+
+```java
+public SearchResult search(SearchRequest request, User currentUser) {
+    // Step 1: FTS + filter → record IDs (fast, SQL-level)
+    List<UUID> candidateIds = searchAdapter.findMatchingIds(request);
+
+    // Step 2: Batch permission check (one query per app type)
+    List<UUID> permittedIds = permissionService
+        .filterReadable(candidateIds, currentUser); // checks field+record ABAC
+
+    // Step 3: Fetch display data only for permitted records
+    return searchAdapter.hydrateResults(permittedIds, request.getPageable());
+}
+```
+
+**Performance constraint:** Permission filtering is done in a single batch query using a temporary table / table-valued parameter, not per-record. For large result sets (> 1000 candidates), only the top 200 candidates are permission-checked (with a note in the response: `resultsTruncatedForPermissions: true`).
+
 ---
 
 ## 9. Performance Strategy
@@ -301,13 +339,13 @@ The search module's service layer abstracts the search backend — `SearchServic
 
 ## 11. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should search history (recent searches) be stored per user? | Low |
-| 2 | Should field-level permissions filter search results? (High complexity + performance impact) | High |
-| 3 | Phonetic / fuzzy search support? (SQL Server FTS has limited fuzzy support) | Medium |
-| 4 | Cross-tenant search for platform admins? (Multi-org deployments) | Medium |
-| 5 | Search result ranking — should relevance score be exposed to users? | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | Should search history (recent searches) be stored per user? | Low | |
+| 2 | ~~Should field-level permissions filter search results?~~ | High | **Resolved:** Yes — see Section 8a. Batch permission post-filter after ID retrieval. Top 200 candidates checked for large result sets. |
+| 3 | Phonetic / fuzzy search support? (SQL Server FTS has limited fuzzy support) | Medium | |
+| 4 | Cross-tenant search for platform admins? | Medium | N/A — single bank deployment. |
+| 5 | Search result ranking — should relevance score be exposed to users? | Low | |
 
 ---
 

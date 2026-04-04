@@ -105,6 +105,7 @@ Each plan must be tested on a regular schedule. Test types:
 | Field Key | Label | Type |
 |-----------|-------|------|
 | `parent_plan` | BCP/DRP Plan | reference |
+| `plan_version` | Plan Version at Test | text | Snapshot of the plan version tested |
 | `test_type` | Test Type | value_list (above) |
 | `test_date` | Test Date | date |
 | `test_lead` | Test Lead | user_reference |
@@ -118,6 +119,8 @@ Each plan must be tested on a regular schedule. Test types:
 | `improvements_required` | Required Improvements | rich_text |
 | `evidence` | Test Evidence | attachment |
 | `linked_issues` | Created Issues | multi_reference |
+
+The `plan_version` field records the exact version of the BCP plan that was tested and is immutable after test creation. This enables comparison of test results before and after plan updates.
 
 When a test identifies gaps, Issues (Module 19) are automatically created for each identified improvement.
 
@@ -180,6 +183,29 @@ CREATE TABLE bcp_activations (
 
 ---
 
+## 7a. Vulnerability-to-BCP Linkage
+
+High-severity vulnerabilities on critical assets represent a potential business disruption risk. When a vulnerability with **CVSS ≥ 9.0** is recorded on a **critical-tier asset**, the system automatically flags the associated BCP plans for review:
+
+```java
+// Triggered in VulnerabilityService after severity assessment
+if (vulnerability.getCvssScore().compareTo(BigDecimal.valueOf(9.0)) >= 0
+        && asset.getCriticality() == AssetCriticality.CRITICAL) {
+
+    List<UUID> affectedPlanIds = bcpService.findPlansForAsset(asset.getId());
+    for (UUID planId : affectedPlanIds) {
+        bcpService.flagForReview(planId,
+            "Critical vulnerability " + vulnerability.getCveId() +
+            " (CVSS " + vulnerability.getCvssScore() + ") detected on covered asset " + asset.getName(),
+            ReviewPriority.HIGH);
+    }
+}
+```
+
+The flag creates a workflow task for the BCP plan owner to review and confirm whether the vulnerability materially changes the plan's assumptions (e.g., primary system may not be available for recovery). The flag is cleared when the vulnerability is remediated or the plan is updated.
+
+---
+
 ## 8. Graph Relationships (Neo4j)
 
 ```cypher
@@ -200,12 +226,12 @@ ORDER BY bp.rto ASC
 
 ## 9. Open Questions
 
-| # | Question | Priority |
-|---|----------|----------|
-| 1 | Should the platform send crisis notifications via SMS/push? (Not just email) | High |
-| 2 | Should BCP plans support step-by-step digital playbooks (checklist during activation)? | High |
-| 3 | Supply chain BCP: should critical vendor BCP health status be tracked? | Medium |
-| 4 | Should recovery cost tracking be included (cost of activation)? | Low |
+| # | Question | Priority | Resolution |
+|---|----------|----------|-----------|
+| 1 | ~~Should the platform send crisis notifications via SMS/push?~~ | High | **Resolved:** Yes — see Module 10, Section 2. SMS (Twilio) and push (FCM) channels are available for critical notifications. BCP activation notifications will use `is_mandatory = true` SMS channel. |
+| 2 | Should BCP plans support step-by-step digital playbooks (checklist during activation)? | High | |
+| 3 | Supply chain BCP: should critical vendor BCP health status be tracked? | Medium | |
+| 4 | Should recovery cost tracking be included (cost of activation)? | Low | |
 
 ---
 
