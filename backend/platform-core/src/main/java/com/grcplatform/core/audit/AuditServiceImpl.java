@@ -1,5 +1,11 @@
 package com.grcplatform.core.audit;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import com.grcplatform.core.domain.AuditChainHead;
 import com.grcplatform.core.domain.AuditLogEntry;
 import com.grcplatform.core.exception.OptimisticLockConflictException;
@@ -7,12 +13,6 @@ import com.grcplatform.core.repository.AuditChainHeadRepository;
 import com.grcplatform.core.repository.AuditLogRepository;
 import jakarta.persistence.OptimisticLockException;
 import jakarta.transaction.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 /**
  * Writes hash-chained, tamper-evident audit entries.
@@ -38,17 +38,13 @@ public class AuditServiceImpl implements AuditService {
     @Override
     @Transactional
     public void log(AuditEvent event) {
-        int attempt = 0;
-        while (attempt < MAX_RETRIES) {
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 attemptLog(event);
                 return;
             } catch (OptimisticLockException e) {
-                attempt++;
-                if (attempt >= MAX_RETRIES) {
-                    throw new OptimisticLockConflictException(
-                            "audit chain head for org " + event.orgId(), e);
-                }
+                if (attempt == MAX_RETRIES) throw new OptimisticLockConflictException(
+                        "audit chain head for org " + event.orgId(), e);
                 log.warn("Audit chain head optimistic lock conflict for org {}, attempt {}/{}",
                         event.orgId(), attempt, MAX_RETRIES);
                 sleepExponential(attempt);
@@ -57,34 +53,27 @@ public class AuditServiceImpl implements AuditService {
     }
 
     private void attemptLog(AuditEvent event) {
-        AuditChainHead head = chainHeadRepository.findByOrgId(event.orgId())
+        var head = chainHeadRepository.findByOrgId(event.orgId())
                 .orElseGet(() -> AuditChainHead.initFor(event.orgId()));
-
-        long sequenceNumber = head.advanceSequence();
-        String prevHash = head.getLastHash() != null ? head.getLastHash() : "0".repeat(64);
-        String eventHash = computeHash(prevHash, event, sequenceNumber);
-        head.updateHash(eventHash);
+        long seqNum = head.advanceSequence();
+        var prevHash = head.getLastHash() != null ? head.getLastHash() : "0".repeat(64);
+        var hash = computeHash(prevHash, event, seqNum);
+        head.updateHash(hash);
         chainHeadRepository.save(head);
 
-        AuditLogEntry entry = AuditLogEntry.create(event.orgId(), sequenceNumber, eventHash,
-                prevHash, event.actorId(), deriveEntityType(event.operation()), event.entityId(),
-                event.operation(), event.oldValue(), event.newValue(), null);
-        auditLogRepository.save(entry);
+        auditLogRepository.save(AuditLogEntry.create(event.orgId(), seqNum, hash, prevHash,
+                event.actorId(), deriveEntityType(event.operation()), event.entityId(),
+                event.operation(), event.oldValue(), event.newValue(), null));
     }
 
     private String computeHash(String prevHash, AuditEvent event, long sequenceNumber) {
-        String input = prevHash + event.orgId() + event.entityId() + event.operation()
+        var raw = prevHash + event.orgId() + event.entityId() + event.operation()
                 + (event.newValue() != null ? event.newValue() : "") + sequenceNumber;
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
-            StringBuilder hex = new StringBuilder(64);
-            for (byte b : hashBytes) {
-                hex.append(String.format("%02x", b));
-            }
-            return hex.toString();
+            return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                    .digest(raw.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not available", e);
+            throw new IllegalStateException("SHA-256 unavailable", e);
         }
     }
 

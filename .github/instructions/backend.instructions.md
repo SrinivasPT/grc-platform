@@ -1,6 +1,9 @@
-# Backend — Copilot Instructions
+---
+applyTo: 'backend/**'
+description: 'Backend Java rules for GRC platform. Use when writing or reviewing any backend Java, Gradle, or Spring Boot code.'
+---
 
-> **Reading order:** Read [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) (global) first, then this file. All global rules apply here without exception.
+# Backend — Java / Spring Boot Rules
 
 ## Tech Stack
 
@@ -55,8 +58,8 @@ String display = switch (fieldValue) {
 ```
 
 > **Full coding standards, idioms, anti-patterns, and before/after examples are in
-> [`backend/.github/java-coding-standards.instructions.md`](java-coding-standards.instructions.md).
-> That file has `applyTo: "**/\*.java"` and is automatically applied to all Java files.\*\*
+> `.github/instructions/java-coding-standards.instructions.md`.**
+> That file has `applyTo: "backend/**/*.java"` and is automatically applied to all Java files.
 
 Summary of the style contract:
 

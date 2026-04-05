@@ -152,7 +152,7 @@ Before generating any code:
 
 1. Read the relevant `docs/modules/NN-*.md` spec.
 2. Check `docs/adr/` for decisions that affect this area.
-3. **Read the scoped instruction file for the area you are editing (see §11 below).**
+3. **Area-specific instructions are auto-attached — no manual read needed.** (See §11 for how this works.)
 4. Write the failing test first.
 5. Implement to make the test pass.
 6. Update `docs/modules/NN-*.md` if the implementation diverges from the spec.
@@ -160,31 +160,19 @@ Before generating any code:
 
 ---
 
-## 11. Scoped Instruction Files — Read Before Generating Code
+## 11. Scoped Instruction Files — Auto-Attached by Copilot
 
-Every subdirectory of this project has its own instruction file that extends and specialises these global rules. **You must read the relevant file before generating any code in that area.** The files are listed below. When you are working on code that spans multiple areas, read all applicable files.
+All area-specific rules live in `.github/instructions/` as `*.instructions.md` files. Each file declares an `applyTo` glob — Copilot automatically injects the relevant files into context whenever you open or edit a matching file. **No manual reading required.**
 
-| When working on…                                                       | Read this file first                                                                                                        |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Any backend Java code                                                  | [`backend/.github/copilot-instructions.md`](../backend/.github/copilot-instructions.md)                                     |
-| `platform-core` (entities, rule engine, audit, context)                | [`backend/platform-core/.github/copilot-instructions.md`](../backend/platform-core/.github/copilot-instructions.md)         |
-| `platform-api` (GraphQL resolvers, REST controllers, security filters) | [`backend/platform-api/.github/copilot-instructions.md`](../backend/platform-api/.github/copilot-instructions.md)           |
-| `platform-workflow` (workflow state machine, escalation, outbox)       | [`backend/platform-workflow/.github/copilot-instructions.md`](../backend/platform-workflow/.github/copilot-instructions.md) |
-| `db/migrations` (Liquibase changesets)                                 | [`backend/db/.github/copilot-instructions.md`](../backend/db/.github/copilot-instructions.md)                               |
-| Any frontend React/TypeScript code                                     | [`frontend/.github/copilot-instructions.md`](../frontend/.github/copilot-instructions.md)                                   |
-| Docker Compose, Tekton pipelines, Keycloak config                      | [`infrastructure/.github/copilot-instructions.md`](../infrastructure/.github/copilot-instructions.md)                       |
+| File                                                                                                  | Auto-attaches when editing…    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------ |
+| [`backend.instructions.md`](.github/instructions/backend.instructions.md)                             | `backend/**`                   |
+| [`java-coding-standards.instructions.md`](.github/instructions/java-coding-standards.instructions.md) | `backend/**/*.java`            |
+| [`platform-core.instructions.md`](.github/instructions/platform-core.instructions.md)                 | `backend/platform-core/**`     |
+| [`platform-api.instructions.md`](.github/instructions/platform-api.instructions.md)                   | `backend/platform-api/**`      |
+| [`platform-workflow.instructions.md`](.github/instructions/platform-workflow.instructions.md)         | `backend/platform-workflow/**` |
+| [`db-migrations.instructions.md`](.github/instructions/db-migrations.instructions.md)                 | `backend/db/**`                |
+| [`frontend.instructions.md`](.github/instructions/frontend.instructions.md)                           | `frontend/**`                  |
+| [`infrastructure.instructions.md`](.github/instructions/infrastructure.instructions.md)               | `infrastructure/**`            |
 
-### Instruction File Hierarchy
-
-```
-.github/copilot-instructions.md              ← Global: applies everywhere (this file)
-├── backend/.github/copilot-instructions.md  ← All backend Java modules
-│   ├── platform-core/.github/copilot-instructions.md
-│   ├── platform-api/.github/copilot-instructions.md
-│   └── platform-workflow/.github/copilot-instructions.md
-│   └── db/.github/copilot-instructions.md
-├── frontend/.github/copilot-instructions.md ← React / TypeScript
-└── infrastructure/.github/copilot-instructions.md ← Docker / Tekton / Keycloak
-```
-
-Each scoped file begins with `Extends [parent instructions]. All parent rules apply.` — this means rules are **additive and cumulative**, not overriding. A rule in this global file cannot be loosened by a scoped file.
+**Example — editing a Java file in `platform-core`:** Copilot automatically includes this global file **+** `backend.instructions.md` **+** `java-coding-standards.instructions.md` **+** `platform-core.instructions.md`. All rules are additive; none of the scoped files can loosen a rule defined here.

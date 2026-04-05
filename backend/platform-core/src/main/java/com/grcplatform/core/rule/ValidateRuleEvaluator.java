@@ -13,10 +13,8 @@ public class ValidateRuleEvaluator extends BaseRuleEvaluator implements RuleEval
 
     @Override
     public EvaluationResult evaluate(RuleNode rule, EvaluationInput input) {
-        boolean valid = evaluateBoolean(rule, input);
-        if (valid) {
-            return EvaluationResult.ValidateResult.pass();
-        }
-        return EvaluationResult.ValidateResult.fail(null, "Validation rule failed");
+        var valid = evaluateBoolean(rule, input);
+        return valid ? EvaluationResult.ValidateResult.pass()
+                : EvaluationResult.ValidateResult.fail(null, "Validation rule failed");
     }
 }

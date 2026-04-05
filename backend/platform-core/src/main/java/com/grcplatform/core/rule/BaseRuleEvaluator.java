@@ -1,9 +1,9 @@
 package com.grcplatform.core.rule;
 
-import com.grcplatform.core.exception.RuleEvaluationException;
-
 import java.util.Collection;
 import java.util.List;
+import java.util.Objects;
+import com.grcplatform.core.exception.RuleEvaluationException;
 
 /**
  * Shared boolean and numeric evaluation logic for all three rule evaluators. Keeps each evaluator's
@@ -47,19 +47,11 @@ abstract class BaseRuleEvaluator {
     }
 
     private boolean evaluateAnd(RuleNode.AndNode and, EvaluationInput input) {
-        for (RuleNode operand : and.operands()) {
-            if (!evaluateBoolean(operand, input))
-                return false;
-        }
-        return true;
+        return and.operands().stream().allMatch(op -> evaluateBoolean(op, input));
     }
 
     private boolean evaluateOr(RuleNode.OrNode or, EvaluationInput input) {
-        for (RuleNode operand : or.operands()) {
-            if (evaluateBoolean(operand, input))
-                return true;
-        }
-        return false;
+        return or.operands().stream().anyMatch(op -> evaluateBoolean(op, input));
     }
 
     private boolean evaluateCompare(RuleNode.CompareNode cmp, EvaluationInput input) {
@@ -85,14 +77,9 @@ abstract class BaseRuleEvaluator {
     }
 
     private boolean equalValues(Object left, Object right) {
-        if (left == null && right == null)
-            return true;
-        if (left == null || right == null)
-            return false;
-        if (left instanceof Number l && right instanceof Number r) {
+        if (left instanceof Number l && right instanceof Number r)
             return Double.compare(l.doubleValue(), r.doubleValue()) == 0;
-        }
-        return left.equals(right);
+        return Objects.equals(left, right);
     }
 
     private int compareNumbers(Object left, Object right) {
@@ -105,9 +92,8 @@ abstract class BaseRuleEvaluator {
     }
 
     private Object evaluateArithmetic(RuleNode.ArithmeticNode arith, EvaluationInput input) {
-        List<Double> operands =
+        var operands =
                 arith.operands().stream().map(op -> toDouble(resolveValue(op, input))).toList();
-
         return switch (arith.op()) {
             case "+" -> operands.stream().mapToDouble(Double::doubleValue).sum();
             case "-" -> operands.get(0)
@@ -117,8 +103,7 @@ abstract class BaseRuleEvaluator {
             case "/" -> {
                 if (operands.size() != 2)
                     throw new RuleEvaluationException("Division requires exactly 2 operands");
-                if (operands.get(1) == 0.0)
-                    throw new RuleEvaluationException("Division by zero");
+                if (operands.get(1) == 0.0) throw new RuleEvaluationException("Division by zero");
                 yield operands.get(0) / operands.get(1);
             }
             default -> throw new RuleEvaluationException(
@@ -133,8 +118,7 @@ abstract class BaseRuleEvaluator {
     }
 
     private double toDouble(Object value) {
-        if (value instanceof Number n)
-            return n.doubleValue();
+        if (value instanceof Number n) return n.doubleValue();
         throw new RuleEvaluationException("Expected numeric value, got: "
                 + (value == null ? "null" : value.getClass().getSimpleName()));
     }

@@ -1,7 +1,5 @@
 package com.grcplatform.core.rule;
 
-import java.util.Map;
-
 /**
  * Sealed result hierarchy for the three rule evaluation contexts. Use switch pattern matching to
  * dispatch on the result type.
