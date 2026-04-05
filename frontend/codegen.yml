@@ -1,13 +1,13 @@
-schema: "http://localhost:8090/graphql"
-documents: "src/graphql/**/*.graphql"
+schema: 'http://localhost:8090/graphql'
+documents: 'src/graphql/**/*.graphql'
 generates:
-  src/graphql/__generated__/:
-    preset: client
-    config:
-      scalars:
-        UUID: string
-        DateTime: string
-        Date: string
-        BigDecimal: string
-    presetConfig:
-      gqlTagName: gql
+    src/graphql/__generated__/:
+        preset: client
+        config:
+            scalars:
+                UUID: string
+                DateTime: string
+                Date: string
+                BigDecimal: string
+        presetConfig:
+            gqlTagName: gql

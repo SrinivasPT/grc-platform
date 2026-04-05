@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- workflow_definitions — state machine definitions (stored as JSON graph) -->
+    <changeSet id="V20260405_006_workflow-01" author="grc-platform" context="main">
+        <createTable tableName="workflow_definitions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_wf_def_app" references="applications(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="workflow_definitions" indexName="ix_wf_def_app_org">
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="workflow_definitions" indexName="ix_wf_def_app_org"/>
+            <dropTable tableName="workflow_definitions"/>
+        </rollback>
+    </changeSet>
+
+    <!-- workflow_instances — runtime workflow state per record -->
+    <changeSet id="V20260405_006_workflow-02" author="grc-platform" context="main">
+        <createTable tableName="workflow_instances">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_wf_inst_record" references="records(id)"/>
+            </column>
+            <column name="definition_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_wf_inst_def" references="workflow_definitions(id)"/>
+            </column>
+            <column name="current_state" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="NVARCHAR(20)" defaultValue="active">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entered_state_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="workflow_instances" columnNames="record_id"
+                             constraintName="uq_wf_inst_record"/>
+        <createIndex tableName="workflow_instances" indexName="ix_wf_inst_org_state">
+            <column name="org_id"/>
+            <column name="current_state"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="workflow_instances" indexName="ix_wf_inst_org_state"/>
+            <dropUniqueConstraint tableName="workflow_instances" constraintName="uq_wf_inst_record"/>
+            <dropTable tableName="workflow_instances"/>
+        </rollback>
+    </changeSet>
+
+    <!-- workflow_history — immutable transition log per instance -->
+    <changeSet id="V20260405_006_workflow-03" author="grc-platform" context="main">
+        <createTable tableName="workflow_history">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="instance_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_wf_hist_inst" references="workflow_instances(id)"/>
+            </column>
+            <column name="from_state" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="to_state" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transition_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="comment" type="NVARCHAR(2000)"/>
+            <column name="transitioned_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="workflow_history" indexName="ix_wf_hist_instance">
+            <column name="instance_id"/>
+            <column name="transitioned_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="workflow_history" indexName="ix_wf_hist_instance"/>
+            <dropTable tableName="workflow_history"/>
+        </rollback>
+    </changeSet>
+
+    <!-- workflow_tasks — human tasks assigned during workflow execution -->
+    <changeSet id="V20260405_006_workflow-04" author="grc-platform" context="main">
+        <createTable tableName="workflow_tasks">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="instance_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_wf_task_inst" references="workflow_instances(id)"/>
+            </column>
+            <column name="task_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="assigned_to" type="UNIQUEIDENTIFIER"/>
+            <column name="assigned_group_id" type="UNIQUEIDENTIFIER"/>
+            <column name="due_date" type="DATETIME2"/>
+            <column name="escalation_days" type="INT"/>
+            <column name="escalated_to" type="UNIQUEIDENTIFIER"/>
+            <column name="status" type="NVARCHAR(20)" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_at" type="DATETIME2"/>
+            <column name="completed_by" type="UNIQUEIDENTIFIER"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="workflow_tasks" indexName="ix_wf_tasks_assigned">
+            <column name="assigned_to"/>
+            <column name="status"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="workflow_tasks" indexName="ix_wf_tasks_due">
+            <column name="due_date"/>
+            <column name="status"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="workflow_tasks" indexName="ix_wf_tasks_due"/>
+            <dropIndex tableName="workflow_tasks" indexName="ix_wf_tasks_assigned"/>
+            <dropTable tableName="workflow_tasks"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

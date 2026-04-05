@@ -1,6 +1,6 @@
 # db — Liquibase Migration Copilot Instructions
 
-Extends the global `.github/copilot-instructions.md`. All global rules apply.
+> **Reading order:** Read [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) (global) first, then this file. All global rules apply here without exception.
 
 ## Purpose
 
@@ -13,6 +13,7 @@ Extends the global `.github/copilot-instructions.md`. All global rules apply.
 **Mandatory:** `V{YYYYMMDD}_{NNN}_{short-description}.xml`
 
 Examples:
+
 - `V20260405_001_init-org-schema.xml`
 - `V20260405_002_init-user-schema.xml`
 - `V20260406_001_add-record-fts-index.xml`
@@ -25,9 +26,9 @@ The `NNN` sequence restarts each day at `001`. If multiple migrations land on th
 
 1. **Always include a `<rollback>` block.** If rollback is not possible (e.g., data-destroying drop), document why with `<rollback><!-- not reversible: ... --></rollback>`.
 2. **Context tagging:**
-   - `context="main"` — production schema changes (DDL, indexes, FKs).
-   - `context="test"` — seed data only (test org, test users, reference data).
-   - Never mix schema DDL and seed data in the same changeset.
+    - `context="main"` — production schema changes (DDL, indexes, FKs).
+    - `context="test"` — seed data only (test org, test users, reference data).
+    - Never mix schema DDL and seed data in the same changeset.
 3. **Column naming:** `snake_case` always. No camelCase, no PascalCase.
 4. **Table naming:** plural `snake_case` (e.g., `organizations`, `workflow_instances`, `audit_log_entries`).
 5. **Never modify an existing changeset.** If a correction is needed, add a new changeset.

@@ -1,6 +1,6 @@
 # Backend — Copilot Instructions
 
-Extends the global `.github/copilot-instructions.md`. All global rules apply here.
+> **Reading order:** Read [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) (global) first, then this file. All global rules apply here without exception.
 
 ## Tech Stack
 

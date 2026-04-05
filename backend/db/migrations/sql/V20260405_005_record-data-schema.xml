@@ -1,0 +1,331 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- records — one row per GRC entity instance (one Risk, one Policy, etc.) -->
+    <changeSet id="V20260405_005_record-data-01" author="grc-platform" context="main">
+        <createTable tableName="records">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_records_org" references="organizations(id)"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_records_app" references="applications(id)"/>
+            </column>
+            <column name="record_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_name" type="NVARCHAR(500)"/>
+            <column name="display_number" type="NVARCHAR(20)"/>
+            <column name="status" type="NVARCHAR(50)" defaultValue="active">
+                <constraints nullable="false"/>
+            </column>
+            <column name="workflow_state" type="NVARCHAR(100)"/>
+            <column name="computed_values" type="NVARCHAR(MAX)"/>
+            <column name="is_deleted" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted_at" type="DATETIME2"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="records" columnNames="org_id, application_id, record_number"
+                             constraintName="uq_record_num_per_app"/>
+        <createIndex tableName="records" indexName="ix_records_app_org">
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="records" indexName="ix_records_workflow">
+            <column name="workflow_state"/>
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <sql>ALTER TABLE records ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = ON)</sql>
+        <rollback>
+            <dropIndex tableName="records" indexName="ix_records_workflow"/>
+            <dropIndex tableName="records" indexName="ix_records_app_org"/>
+            <dropUniqueConstraint tableName="records" constraintName="uq_record_num_per_app"/>
+            <dropTable tableName="records"/>
+        </rollback>
+    </changeSet>
+
+    <!-- field_values_text — stores text and rich-text field values -->
+    <changeSet id="V20260405_005_record-data-02" author="grc-platform" context="main">
+        <createTable tableName="field_values_text">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvt_record" references="records(id)"/>
+            </column>
+            <column name="field_def_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvt_field_def" references="field_definitions(id)"/>
+            </column>
+            <column name="value" type="NVARCHAR(MAX)"/>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="field_values_text" columnNames="record_id, field_def_id"
+                             constraintName="uq_fvt_record_field"/>
+        <createIndex tableName="field_values_text" indexName="ix_fvt_record">
+            <column name="record_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="field_values_text" indexName="ix_fvt_field_def">
+            <column name="field_def_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="field_values_text" indexName="ix_fvt_field_def"/>
+            <dropIndex tableName="field_values_text" indexName="ix_fvt_record"/>
+            <dropUniqueConstraint tableName="field_values_text" constraintName="uq_fvt_record_field"/>
+            <dropTable tableName="field_values_text"/>
+        </rollback>
+    </changeSet>
+
+    <!-- field_values_number — stores integer, decimal, currency, percentage, boolean values -->
+    <changeSet id="V20260405_005_record-data-03" author="grc-platform" context="main">
+        <createTable tableName="field_values_number">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvn_record" references="records(id)"/>
+            </column>
+            <column name="field_def_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvn_field_def" references="field_definitions(id)"/>
+            </column>
+            <column name="value" type="DECIMAL(28,10)"/>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="field_values_number" columnNames="record_id, field_def_id"
+                             constraintName="uq_fvn_record_field"/>
+        <createIndex tableName="field_values_number" indexName="ix_fvn_record">
+            <column name="record_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="field_values_number" indexName="ix_fvn_record"/>
+            <dropUniqueConstraint tableName="field_values_number" constraintName="uq_fvn_record_field"/>
+            <dropTable tableName="field_values_number"/>
+        </rollback>
+    </changeSet>
+
+    <!-- field_values_date — stores date and datetime field values -->
+    <changeSet id="V20260405_005_record-data-04" author="grc-platform" context="main">
+        <createTable tableName="field_values_date">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvd_record" references="records(id)"/>
+            </column>
+            <column name="field_def_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvd_field_def" references="field_definitions(id)"/>
+            </column>
+            <column name="value" type="DATETIME2"/>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="field_values_date" columnNames="record_id, field_def_id"
+                             constraintName="uq_fvd_record_field"/>
+        <createIndex tableName="field_values_date" indexName="ix_fvd_record">
+            <column name="record_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="field_values_date" indexName="ix_fvd_record"/>
+            <dropUniqueConstraint tableName="field_values_date" constraintName="uq_fvd_record_field"/>
+            <dropTable tableName="field_values_date"/>
+        </rollback>
+    </changeSet>
+
+    <!-- field_values_reference — stores single-select, multi-select, user, record, org-unit refs -->
+    <changeSet id="V20260405_005_record-data-05" author="grc-platform" context="main">
+        <createTable tableName="field_values_reference">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvr_record" references="records(id)"/>
+            </column>
+            <column name="field_def_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_fvr_field_def" references="field_definitions(id)"/>
+            </column>
+            <column name="ref_type" type="NVARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ref_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_label" type="NVARCHAR(500)"/>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="field_values_reference" indexName="ix_fvr_record">
+            <column name="record_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="field_values_reference" indexName="ix_fvr_ref_id">
+            <column name="ref_id"/>
+            <column name="ref_type"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="field_values_reference" indexName="ix_fvr_field_def">
+            <column name="field_def_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="field_values_reference" indexName="ix_fvr_field_def"/>
+            <dropIndex tableName="field_values_reference" indexName="ix_fvr_ref_id"/>
+            <dropIndex tableName="field_values_reference" indexName="ix_fvr_record"/>
+            <dropTable tableName="field_values_reference"/>
+        </rollback>
+    </changeSet>
+
+    <!-- record_relations — many-to-many typed links between any two records -->
+    <changeSet id="V20260405_005_record-data-06" author="grc-platform" context="main">
+        <createTable tableName="record_relations">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_rr_source" references="records(id)"/>
+            </column>
+            <column name="target_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_rr_target" references="records(id)"/>
+            </column>
+            <column name="relation_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_directional" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="record_relations"
+                             columnNames="source_id, target_id, relation_type"
+                             constraintName="uq_rr_src_tgt_type"/>
+        <createIndex tableName="record_relations" indexName="ix_rr_source">
+            <column name="source_id"/>
+            <column name="relation_type"/>
+            <column name="org_id"/>
+        </createIndex>
+        <createIndex tableName="record_relations" indexName="ix_rr_target">
+            <column name="target_id"/>
+            <column name="relation_type"/>
+            <column name="org_id"/>
+        </createIndex>
+        <sql>ALTER TABLE record_relations ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = ON)</sql>
+        <rollback>
+            <dropIndex tableName="record_relations" indexName="ix_rr_target"/>
+            <dropIndex tableName="record_relations" indexName="ix_rr_source"/>
+            <dropUniqueConstraint tableName="record_relations" constraintName="uq_rr_src_tgt_type"/>
+            <dropTable tableName="record_relations"/>
+        </rollback>
+    </changeSet>
+
+    <!-- record_attachments — file attachment metadata (binary in blob storage, never in DB) -->
+    <changeSet id="V20260405_005_record-data-07" author="grc-platform" context="main">
+        <createTable tableName="record_attachments">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_attach_record" references="records(id)"/>
+            </column>
+            <column name="field_def_id" type="UNIQUEIDENTIFIER">
+                <constraints foreignKeyName="fk_attach_field_def" references="field_definitions(id)"/>
+            </column>
+            <column name="original_name" type="NVARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="storage_path" type="NVARCHAR(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mime_type" type="NVARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="file_size_bytes" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="checksum_sha256" type="NCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scan_status" type="NVARCHAR(20)" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_deleted" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="record_attachments" indexName="ix_attachments_record">
+            <column name="record_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="record_attachments" indexName="ix_attachments_record"/>
+            <dropTable tableName="record_attachments"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

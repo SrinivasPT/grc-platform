@@ -1,10 +1,11 @@
 # platform-workflow — Copilot Instructions
 
-Extends `backend/.github/copilot-instructions.md` and the global instructions. All parent rules apply.
+> **Reading order:** Read in sequence — (1) [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) → (2) [`backend/.github/copilot-instructions.md`](../../.github/copilot-instructions.md) → (3) this file. All parent rules apply without exception.
 
 ## Purpose
 
 `platform-workflow` implements the workflow state machine. It depends only on `platform-core`. It contains:
+
 - `WorkflowEngine` — state machine transitions, guard evaluation, action dispatch
 - `WorkflowInstance` entity lifecycle
 - Delegation and escalation logic
@@ -18,11 +19,11 @@ Extends `backend/.github/copilot-instructions.md` and the global instructions. A
 - Transitions are guarded by `RuleEvaluator` (from `platform-core`) — no custom guard impl.
 - After a successful transition, publish to `event_outbox` — never call notification or integration services directly.
 - **Optimistic locking on `workflow_instances.version`** prevents parallel completion race:
-  ```sql
-  UPDATE workflow_instances SET status = ?, version = version + 1
-  WHERE id = ? AND version = ?
-  ```
-  If 0 rows updated → throw `WorkflowConcurrentModificationException`.
+    ```sql
+    UPDATE workflow_instances SET status = ?, version = version + 1
+    WHERE id = ? AND version = ?
+    ```
+    If 0 rows updated → throw `WorkflowConcurrentModificationException`.
 
 ---
 

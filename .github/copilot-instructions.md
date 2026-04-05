@@ -18,10 +18,10 @@ See `docs/modules/` for module-level specs. See `docs/adr/` for architecture dec
 - Package installation uses `apt-get` (e.g. `sudo apt-get install -y openjdk-21-jdk`).
 - Use `ss`, `nc`, or `/proc/net/tcp` for port checks — not `netstat` or `Test-NetConnection`.
 - Dev environment scripts live in `infrastructure/scripts/`:
-  - `dev-setup.sh` — canonical Ubuntu/bash setup (run this one)
-  - `dev-teardown.sh` — stop all local services
-  - `dev-setup.ps1` — Windows companion (do not run on Ubuntu)
-  - `dev-teardown.ps1` — Windows companion teardown
+    - `dev-setup.sh` — canonical Ubuntu/bash setup (run this one)
+    - `dev-teardown.sh` — stop all local services
+    - `dev-setup.ps1` — Windows companion (do not run on Ubuntu)
+    - `dev-teardown.ps1` — Windows companion teardown
 
 ---
 
@@ -149,9 +149,42 @@ platform-*          → depends only on platform-core; never on sibling modules
 ## 10. Agent Workflow Checklist
 
 Before generating any code:
+
 1. Read the relevant `docs/modules/NN-*.md` spec.
 2. Check `docs/adr/` for decisions that affect this area.
-3. Write the failing test first.
-4. Implement to make the test pass.
-5. Update `docs/modules/NN-*.md` if the implementation diverges from the spec.
-6. Create/update ADR if architecture is affected.
+3. **Read the scoped instruction file for the area you are editing (see §11 below).**
+4. Write the failing test first.
+5. Implement to make the test pass.
+6. Update `docs/modules/NN-*.md` if the implementation diverges from the spec.
+7. Create/update ADR if architecture is affected.
+
+---
+
+## 11. Scoped Instruction Files — Read Before Generating Code
+
+Every subdirectory of this project has its own instruction file that extends and specialises these global rules. **You must read the relevant file before generating any code in that area.** The files are listed below. When you are working on code that spans multiple areas, read all applicable files.
+
+| When working on…                                                       | Read this file first                                                                                                        |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Any backend Java code                                                  | [`backend/.github/copilot-instructions.md`](../backend/.github/copilot-instructions.md)                                     |
+| `platform-core` (entities, rule engine, audit, context)                | [`backend/platform-core/.github/copilot-instructions.md`](../backend/platform-core/.github/copilot-instructions.md)         |
+| `platform-api` (GraphQL resolvers, REST controllers, security filters) | [`backend/platform-api/.github/copilot-instructions.md`](../backend/platform-api/.github/copilot-instructions.md)           |
+| `platform-workflow` (workflow state machine, escalation, outbox)       | [`backend/platform-workflow/.github/copilot-instructions.md`](../backend/platform-workflow/.github/copilot-instructions.md) |
+| `db/migrations` (Liquibase changesets)                                 | [`backend/db/.github/copilot-instructions.md`](../backend/db/.github/copilot-instructions.md)                               |
+| Any frontend React/TypeScript code                                     | [`frontend/.github/copilot-instructions.md`](../frontend/.github/copilot-instructions.md)                                   |
+| Docker Compose, Tekton pipelines, Keycloak config                      | [`infrastructure/.github/copilot-instructions.md`](../infrastructure/.github/copilot-instructions.md)                       |
+
+### Instruction File Hierarchy
+
+```
+.github/copilot-instructions.md              ← Global: applies everywhere (this file)
+├── backend/.github/copilot-instructions.md  ← All backend Java modules
+│   ├── platform-core/.github/copilot-instructions.md
+│   ├── platform-api/.github/copilot-instructions.md
+│   └── platform-workflow/.github/copilot-instructions.md
+│   └── db/.github/copilot-instructions.md
+├── frontend/.github/copilot-instructions.md ← React / TypeScript
+└── infrastructure/.github/copilot-instructions.md ← Docker / Tekton / Keycloak
+```
+
+Each scoped file begins with `Extends [parent instructions]. All parent rules apply.` — this means rules are **additive and cumulative**, not overriding. A rule in this global file cannot be loosened by a scoped file.

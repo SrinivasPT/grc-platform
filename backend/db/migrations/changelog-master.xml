@@ -13,6 +13,20 @@
     <include file="sql/V20260405_003_enable-change-tracking.xml"
              relativeToChangelogFile="true"/>
 
+    <!-- Phase 1: Core Platform Engine schema -->
+    <include file="sql/V20260405_004_app-config-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_005_record-data-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_006_workflow-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_007_audit-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_008_access-control-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_009_infrastructure-schema.xml"
+             relativeToChangelogFile="true"/>
+
     <!-- Test seed data (context: test — never runs in production) -->
     <include file="sql/V20260405_T001_seed-test-org.xml"
              relativeToChangelogFile="true"/>

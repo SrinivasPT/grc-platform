@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- event_outbox — transactional outbox for all async side-effects -->
+    <changeSet id="V20260405_009_infra-01" author="grc-platform" context="main">
+        <createTable tableName="event_outbox">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="idempotency_key" type="NVARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aggregate_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aggregate_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="NVARCHAR(20)" defaultValue="PENDING">
+                <constraints nullable="false"/>
+            </column>
+            <column name="retry_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_error" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="processed_at" type="DATETIME2"/>
+        </createTable>
+        <addUniqueConstraint tableName="event_outbox" columnNames="org_id, idempotency_key"
+                             constraintName="uq_outbox_idempotency"/>
+        <createIndex tableName="event_outbox" indexName="ix_outbox_status_created">
+            <column name="status"/>
+            <column name="created_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="event_outbox" indexName="ix_outbox_status_created"/>
+            <dropUniqueConstraint tableName="event_outbox" constraintName="uq_outbox_idempotency"/>
+            <dropTable tableName="event_outbox"/>
+        </rollback>
+    </changeSet>
+
+    <!-- event_outbox_dlq — dead-letter queue for events that exceeded max retries -->
+    <changeSet id="V20260405_009_infra-02" author="grc-platform" context="main">
+        <createTable tableName="event_outbox_dlq">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="original_outbox_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aggregate_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="aggregate_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="failure_reason" type="NVARCHAR(MAX)"/>
+            <column name="moved_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="event_outbox_dlq" indexName="ix_dlq_org_event">
+            <column name="org_id"/>
+            <column name="event_type"/>
+            <column name="moved_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="event_outbox_dlq" indexName="ix_dlq_org_event"/>
+            <dropTable tableName="event_outbox_dlq"/>
+        </rollback>
+    </changeSet>
+
+    <!-- graph_sync_state — tracks last SQL Server Change Tracking version synced to Neo4j -->
+    <changeSet id="V20260405_009_infra-03" author="grc-platform" context="main">
+        <createTable tableName="graph_sync_state">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_ct_version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="graph_sync_state" columnNames="org_id, entity_type"
+                             constraintName="uq_gss_org_entity"/>
+        <rollback>
+            <dropUniqueConstraint tableName="graph_sync_state" constraintName="uq_gss_org_entity"/>
+            <dropTable tableName="graph_sync_state"/>
+        </rollback>
+    </changeSet>
+
+    <!-- idempotency_keys — caches API responses for duplicate request detection -->
+    <changeSet id="V20260405_009_infra-04" author="grc-platform" context="main">
+        <createTable tableName="idempotency_keys">
+            <column name="key_hash" type="NCHAR(64)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="response_body" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status_code" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at" type="DATETIME2">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="idempotency_keys" indexName="ix_idempotency_expires">
+            <column name="expires_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="idempotency_keys" indexName="ix_idempotency_expires"/>
+            <dropTable tableName="idempotency_keys"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

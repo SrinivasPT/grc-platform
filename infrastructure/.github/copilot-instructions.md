@@ -1,6 +1,6 @@
 # Infrastructure — Copilot Instructions
 
-Extends the global `.github/copilot-instructions.md`. All global rules apply.
+> **Reading order:** Read [`.github/copilot-instructions.md`](../../.github/copilot-instructions.md) (global) first, then this file. All global rules apply here without exception.
 
 ## OS & Shell (Ubuntu Linux)
 
@@ -14,6 +14,7 @@ Extends the global `.github/copilot-instructions.md`. All global rules apply.
 ## Purpose
 
 `infrastructure/` contains all deployment and environment configuration:
+
 - Docker Compose for local development
 - Tekton pipeline definitions for CI/CD
 - Keycloak realm configuration
@@ -38,7 +39,6 @@ Extends the global `.github/copilot-instructions.md`. All global rules apply.
 - Secrets in Tekton: use `secretKeyRef` — never `value:` with literal credentials.
 - Pipeline parameters: always document with `description` field.
 
-
 - Task results: use `$(results.RESULT_NAME.path)` — never echo to stdout and parse.
 
 ---
@@ -46,6 +46,7 @@ Extends the global `.github/copilot-instructions.md`. All global rules apply.
 ## Quality Gate Pipeline Requirements
 
 All of these must pass before a merge is allowed:
+
 1. `./gradlew build` — compiles all modules
 2. `./gradlew test` — all unit tests green
 3. `./gradlew integrationTest` — Testcontainers integration tests green
@@ -66,16 +67,16 @@ All of these must pass before a merge is allowed:
 
 ## Environment Variable Catalog
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SQLSERVER_SA_PASSWORD` | SQL Server SA password | (from vault) |
-| `NEO4J_AUTH` | Neo4j auth string | `neo4j/password` |
-| `REDIS_PASSWORD` | Redis password | (from vault) |
-| `KEYCLOAK_ADMIN` | Keycloak admin user | `admin` |
-| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password | (from vault) |
-| `GRC_DB_URL` | App DB connection URL | `jdbc:sqlserver://sqlserver:1433;databaseName=grc` |
-| `GRC_DB_USER` | App DB username | `grc_app` |
-| `GRC_DB_PASSWORD` | App DB password | (from vault) |
+| Variable                  | Description             | Example                                            |
+| ------------------------- | ----------------------- | -------------------------------------------------- |
+| `SQLSERVER_SA_PASSWORD`   | SQL Server SA password  | (from vault)                                       |
+| `NEO4J_AUTH`              | Neo4j auth string       | `neo4j/password`                                   |
+| `REDIS_PASSWORD`          | Redis password          | (from vault)                                       |
+| `KEYCLOAK_ADMIN`          | Keycloak admin user     | `admin`                                            |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak admin password | (from vault)                                       |
+| `GRC_DB_URL`              | App DB connection URL   | `jdbc:sqlserver://sqlserver:1433;databaseName=grc` |
+| `GRC_DB_USER`             | App DB username         | `grc_app`                                          |
+| `GRC_DB_PASSWORD`         | App DB password         | (from vault)                                       |
 
 ---
 

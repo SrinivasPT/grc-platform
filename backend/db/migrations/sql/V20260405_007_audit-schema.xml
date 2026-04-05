@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- audit_chain_head — one row per org; optimistic-lock anchor for hash chaining -->
+    <changeSet id="V20260405_007_audit-01" author="grc-platform" context="main">
+        <createTable tableName="audit_chain_head">
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints primaryKey="true" nullable="false"
+                             foreignKeyName="fk_audit_chain_head_org" references="organizations(id)"/>
+            </column>
+            <column name="last_sequence" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_hash" type="NCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <rollback>
+            <dropTable tableName="audit_chain_head"/>
+        </rollback>
+    </changeSet>
+
+    <!-- audit_log — append-only immutable event log with hash-chain tamper evidence -->
+    <changeSet id="V20260405_007_audit-02" author="grc-platform" context="main">
+        <createTable tableName="audit_log">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sequence_number" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_hash" type="NCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="prev_hash" type="NCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_time" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="UNIQUEIDENTIFIER"/>
+            <column name="entity_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="entity_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="old_value" type="NVARCHAR(MAX)"/>
+            <column name="new_value" type="NVARCHAR(MAX)"/>
+            <column name="ip_address" type="NVARCHAR(45)"/>
+            <column name="session_id" type="NVARCHAR(200)"/>
+            <column name="correlation_id" type="UNIQUEIDENTIFIER"/>
+        </createTable>
+        <addUniqueConstraint tableName="audit_log" columnNames="org_id, sequence_number"
+                             constraintName="uq_audit_org_seq"/>
+        <createIndex tableName="audit_log" indexName="ix_audit_entity">
+            <column name="entity_id"/>
+            <column name="entity_type"/>
+            <column name="event_time"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="ix_audit_user">
+            <column name="user_id"/>
+            <column name="event_time"/>
+        </createIndex>
+        <createIndex tableName="audit_log" indexName="ix_audit_org_time">
+            <column name="org_id"/>
+            <column name="event_time"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="audit_log" indexName="ix_audit_org_time"/>
+            <dropIndex tableName="audit_log" indexName="ix_audit_user"/>
+            <dropIndex tableName="audit_log" indexName="ix_audit_entity"/>
+            <dropUniqueConstraint tableName="audit_log" constraintName="uq_audit_org_seq"/>
+            <dropTable tableName="audit_log"/>
+        </rollback>
+    </changeSet>
+
+    <!-- record_versions — point-in-time snapshots of records for historical comparison -->
+    <changeSet id="V20260405_007_audit-03" author="grc-platform" context="main">
+        <createTable tableName="record_versions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_rv_record" references="records(id)"/>
+            </column>
+            <column name="version_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="snapshot_json" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="record_versions" columnNames="record_id, version_number"
+                             constraintName="uq_rv_record_version"/>
+        <createIndex tableName="record_versions" indexName="ix_rv_record">
+            <column name="record_id"/>
+            <column name="version_number"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="record_versions" indexName="ix_rv_record"/>
+            <dropUniqueConstraint tableName="record_versions" constraintName="uq_rv_record_version"/>
+            <dropTable tableName="record_versions"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

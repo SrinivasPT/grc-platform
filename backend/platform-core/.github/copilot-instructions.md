@@ -1,10 +1,11 @@
 # platform-core — Copilot Instructions
 
-Extends `backend/.github/copilot-instructions.md` and the global instructions. All parent rules apply.
+> **Reading order:** Read in sequence — (1) [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) → (2) [`backend/.github/copilot-instructions.md`](../../.github/copilot-instructions.md) → (3) this file. All parent rules apply without exception.
 
 ## Purpose
 
 `platform-core` is the domain heart of the GRC platform. It contains:
+
 - Domain entities (records, field values, module types, relationships)
 - The rule engine (`RuleDslParser`, `RuleEvaluator`, three execution contexts)
 - Audit service and hash-chain logic

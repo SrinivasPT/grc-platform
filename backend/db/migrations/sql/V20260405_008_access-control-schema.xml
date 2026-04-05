@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- permission_policies — named sets of permissions assigned to roles -->
+    <changeSet id="V20260405_008_access-01" author="grc-platform" context="main">
+        <createTable tableName="permission_policies">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="resource_id" type="UNIQUEIDENTIFIER"/>
+            <column name="effect" type="NVARCHAR(10)" defaultValue="allow">
+                <constraints nullable="false"/>
+            </column>
+            <column name="permissions" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="conditions" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="permission_policies" indexName="ix_perm_policies_org_res">
+            <column name="org_id"/>
+            <column name="resource_type"/>
+            <column name="resource_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="permission_policies" indexName="ix_perm_policies_org_res"/>
+            <dropTable tableName="permission_policies"/>
+        </rollback>
+    </changeSet>
+
+    <!-- record_access_rules — declarative rules controlling record-level access -->
+    <changeSet id="V20260405_008_access-02" author="grc-platform" context="main">
+        <createTable tableName="record_access_rules">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_rar_app" references="applications(id)"/>
+            </column>
+            <column name="role_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_rar_role" references="roles(id)"/>
+            </column>
+            <column name="can_read" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_create" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_update" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_delete" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filter_rule_dsl" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="record_access_rules" indexName="ix_rar_app_role">
+            <column name="application_id"/>
+            <column name="role_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="record_access_rules" indexName="ix_rar_app_role"/>
+            <dropTable tableName="record_access_rules"/>
+        </rollback>
+    </changeSet>
+
+    <!-- materialized_record_access — pre-computed O(1) access table rebuilt asynchronously -->
+    <changeSet id="V20260405_008_access-03" author="grc-platform" context="main">
+        <createTable tableName="materialized_record_access">
+            <column name="user_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_mra_record" references="records(id)"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_read" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_update" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="can_delete" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="computed_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="materialized_record_access"
+                             columnNames="user_id, record_id"
+                             constraintName="pk_mra_user_record"/>
+        <createIndex tableName="materialized_record_access" indexName="ix_mra_user">
+            <column name="user_id"/>
+            <column name="org_id"/>
+            <column name="can_read"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="materialized_record_access" indexName="ix_mra_user"/>
+            <dropUniqueConstraint tableName="materialized_record_access" constraintName="pk_mra_user_record"/>
+            <dropTable tableName="materialized_record_access"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

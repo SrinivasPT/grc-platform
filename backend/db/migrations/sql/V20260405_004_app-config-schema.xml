@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- applications — defines GRC entity types (Risk, Policy, Control, etc.) -->
+    <changeSet id="V20260405_004_app-config-01" author="grc-platform" context="main">
+        <createTable tableName="applications">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_applications_org" references="organizations(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="internal_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="record_prefix" type="NVARCHAR(10)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="NVARCHAR(2000)"/>
+            <column name="icon" type="NVARCHAR(100)"/>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="applications" columnNames="org_id, internal_key"
+                             constraintName="uq_app_key_per_org"/>
+        <createIndex tableName="applications" indexName="ix_applications_org">
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="applications" indexName="ix_applications_org"/>
+            <dropUniqueConstraint tableName="applications" constraintName="uq_app_key_per_org"/>
+            <dropTable tableName="applications"/>
+        </rollback>
+    </changeSet>
+
+    <!-- field_definitions — columns of an application -->
+    <changeSet id="V20260405_004_app-config-02" author="grc-platform" context="main">
+        <createTable tableName="field_definitions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_field_defs_app" references="applications(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="internal_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="field_type" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_required" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_system" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_searchable" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="materialize_as_column" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config" type="NVARCHAR(MAX)"/>
+            <column name="validation_rules" type="NVARCHAR(MAX)"/>
+            <column name="config_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="field_definitions" columnNames="application_id, internal_key"
+                             constraintName="uq_field_key_per_app"/>
+        <createIndex tableName="field_definitions" indexName="ix_field_defs_app_org">
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="field_definitions" indexName="ix_field_defs_app_org"/>
+            <dropUniqueConstraint tableName="field_definitions" constraintName="uq_field_key_per_app"/>
+            <dropTable tableName="field_definitions"/>
+        </rollback>
+    </changeSet>
+
+    <!-- value_lists — named sets of allowed values -->
+    <changeSet id="V20260405_004_app-config-03" author="grc-platform" context="main">
+        <createTable tableName="value_lists">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_value_lists_org" references="organizations(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="internal_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_system" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="value_lists" columnNames="org_id, internal_key"
+                             constraintName="uq_vl_key_per_org"/>
+        <rollback>
+            <dropUniqueConstraint tableName="value_lists" constraintName="uq_vl_key_per_org"/>
+            <dropTable tableName="value_lists"/>
+        </rollback>
+    </changeSet>
+
+    <!-- value_list_items — individual entries within a value list -->
+    <changeSet id="V20260405_004_app-config-04" author="grc-platform" context="main">
+        <createTable tableName="value_list_items">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="value_list_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_vli_list" references="value_lists(id)"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="label" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="value" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="color" type="NVARCHAR(20)"/>
+            <column name="numeric_weight" type="DECIMAL(10,4)"/>
+            <column name="display_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="UNIQUEIDENTIFIER">
+                <constraints foreignKeyName="fk_vli_parent" references="value_list_items(id)"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="value_list_items" columnNames="value_list_id, value"
+                             constraintName="uq_vl_item_val"/>
+        <createIndex tableName="value_list_items" indexName="ix_vli_list">
+            <column name="value_list_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="value_list_items" indexName="ix_vli_list"/>
+            <dropUniqueConstraint tableName="value_list_items" constraintName="uq_vl_item_val"/>
+            <dropTable tableName="value_list_items"/>
+        </rollback>
+    </changeSet>
+
+    <!-- layout_definitions — form, list, and dashboard layout JSON -->
+    <changeSet id="V20260405_004_app-config-05" author="grc-platform" context="main">
+        <createTable tableName="layout_definitions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_layout_defs_app" references="applications(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="layout_type" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="layout_config" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_default" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="layout_definitions" indexName="ix_layout_defs_app_org">
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="layout_definitions" indexName="ix_layout_defs_app_org"/>
+            <dropTable tableName="layout_definitions"/>
+        </rollback>
+    </changeSet>
+
+    <!-- rule_definitions — stored rule DSL for calculations, validations, triggers -->
+    <changeSet id="V20260405_004_app-config-06" author="grc-platform" context="main">
+        <createTable tableName="rule_definitions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER">
+                <constraints foreignKeyName="fk_rule_defs_app" references="applications(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rule_type" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trigger_event" type="NVARCHAR(100)"/>
+            <column name="target_field" type="NVARCHAR(100)"/>
+            <column name="rule_dsl" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="config_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="rule_definitions" indexName="ix_rule_defs_app_org">
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="rule_definitions" indexName="ix_rule_defs_app_org"/>
+            <dropTable tableName="rule_definitions"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,10 +1,11 @@
 # platform-api — Copilot Instructions
 
-Extends `backend/.github/copilot-instructions.md` and the global instructions. All parent rules apply.
+> **Reading order:** Read in sequence — (1) [`.github/copilot-instructions.md`](../../../.github/copilot-instructions.md) → (2) [`backend/.github/copilot-instructions.md`](../../.github/copilot-instructions.md) → (3) this file. All parent rules apply without exception.
 
 ## Purpose
 
 `platform-api` is the entry point for all external communication. It contains:
+
 - Spring Boot `main` class
 - GraphQL controllers (queries + mutations + subscriptions)
 - REST controllers (file upload, webhook callbacks, SCIM, bulk export)
@@ -75,7 +76,7 @@ Never reorder these filters. If a new filter is needed, raise an ADR first.
 
 ## Agent Checklist (platform-api)
 
-1. Is this a new collection resolver? → Must use `@BatchMapping`.  
-2. Does the mutation need a new `Command` record in `platform-core`? → Define the record there first.  
-3. Does the new endpoint accept user input? → Add `@Valid` and create a validation test.  
+1. Is this a new collection resolver? → Must use `@BatchMapping`.
+2. Does the mutation need a new `Command` record in `platform-core`? → Define the record there first.
+3. Does the new endpoint accept user input? → Add `@Valid` and create a validation test.
 4. Is this a new security filter? → Write ADR first, then failing test, then implementation.
