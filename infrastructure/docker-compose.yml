@@ -83,9 +83,9 @@ services:
 
   # ─── Keycloak 24.x ────────────────────────────────────────────────────────
   keycloak:
-    image: quay.io/keycloak/keycloak:24.0
+    image: quay.io/keycloak/keycloak:26.0
     container_name: grc_keycloak
-    command: start-dev --import-realm
+    command: start-dev
     environment:
       KEYCLOAK_ADMIN: "${KEYCLOAK_ADMIN}"
       KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
@@ -94,9 +94,6 @@ services:
       KC_DB: dev-mem
     ports:
       - "8080:8080"
-    volumes:
-      - ./keycloak:/opt/keycloak/data/import
-      - grc_keycloak_data:/opt/keycloak/data
     networks:
       - grc_net
     restart: unless-stopped
