@@ -1,3 +1,5 @@
+apply plugin: 'io.spring.dependency-management'
+
 dependencies {
     implementation project(':platform-core')
 

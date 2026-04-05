@@ -38,23 +38,56 @@ docker exec grc_sqlserver \
 
 ### 4. Run Liquibase migrations
 
+Migrations are applied via Docker (the Liquibase Gradle plugin is not used):
+
 ```bash
-cd ../backend
-./gradlew :db:liquibaseUpdate
+# Linux/macOS
+docker run --rm --network infrastructure_grc_net \
+  -v "$(pwd)/../backend/db/src/main/resources:/liquibase/changelog" \
+  liquibase/liquibase:4.28 \
+  --url="jdbc:sqlserver://grc_sqlserver:1433;databaseName=grcplatform;encrypt=true;trustServerCertificate=true" \
+  --username=grc_app \
+  --password="$GRC_APP_PASSWORD" \
+  --changeLogFile=db/migrations/changelog-master.xml \
+  --contexts=main \
+  --logLevel=info \
+  update
+
+# Windows PowerShell
+docker run --rm --network infrastructure_grc_net `
+  -v "${PWD}/../backend/db/src/main/resources:/liquibase/changelog" `
+  liquibase/liquibase:4.28 `
+  --url="jdbc:sqlserver://grc_sqlserver:1433;databaseName=grcplatform;encrypt=true;trustServerCertificate=true" `
+  --username=grc_app `
+  --password="$env:GRC_APP_PASSWORD" `
+  --changeLogFile=db/migrations/changelog-master.xml `
+  --contexts=main `
+  --logLevel=info `
+  update
 ```
+
+> **Note:** Spring Boot also runs Liquibase on startup (contexts=main only).
 
 ### 5. Start the backend
 
 ```bash
-./gradlew :platform-api:bootRun
+# Linux/macOS
+export REDIS_PASSWORD=<your_password>
+export SQLSERVER_SA_PASSWORD=<your_password>
+cd ../backend && ./gradlew :platform-api:bootRun
+
+# Windows PowerShell
+$env:REDIS_PASSWORD="<your_password>"
+$env:SQLSERVER_SA_PASSWORD="<your_password>"
+Set-Location ../backend ; .\gradlew.bat :platform-api:bootRun
 ```
 
 ### 6. Start the frontend
 
 ```bash
 cd ../frontend
-pnpm install
-pnpm dev
+npm install
+npm run dev
 ```
 
 ---
@@ -82,8 +115,8 @@ docker-compose rm -sf sqlserver && docker-compose up -d sqlserver
 # Full environment reset (WARNING: destroys all data)
 docker-compose down -v && docker-compose up -d
 
-# Re-run migrations after reset
-cd ../backend && ./gradlew :db:liquibaseUpdate
+# Re-run migrations after reset (see step 4 above for full Docker Liquibase command)
+cd ../backend && docker run --rm --network infrastructure_grc_net ...
 ```
 
 ---

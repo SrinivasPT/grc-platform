@@ -28,6 +28,8 @@ describe('App', () => {
 
   it('shows placeholder text for Phase 4 modules', () => {
     renderApp()
-    expect(screen.getByText(/Phase 4/i)).toBeInTheDocument()
+    // Phase 4 text appears in both sidebar nav and dashboard placeholder — use getAllByText
+    const phase4Elements = screen.getAllByText(/Phase 4/i)
+    expect(phase4Elements.length).toBeGreaterThan(0)
   })
 })

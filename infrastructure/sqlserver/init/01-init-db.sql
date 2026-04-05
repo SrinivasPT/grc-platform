@@ -42,5 +42,6 @@ GO
 ALTER ROLE db_datareader ADD MEMBER grc_app;
 ALTER ROLE db_datawriter ADD MEMBER grc_app;
 GRANT EXECUTE TO grc_app;
-GRANT VIEW CHANGE TRACKING ON DATABASE::grcplatform TO grc_app;
+-- Required for Change Tracking queries (CHANGETABLE, CHANGE_TRACKING_CURRENT_VERSION)
+GRANT VIEW DATABASE STATE TO grc_app;
 GO

@@ -1,5 +1,3 @@
-version: "3.9"
-
 networks:
   grc_net:
     driver: bridge
@@ -85,7 +83,7 @@ services:
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: grc_keycloak
-    command: start-dev
+    command: start-dev --import-realm
     environment:
       KEYCLOAK_ADMIN: "${KEYCLOAK_ADMIN}"
       KEYCLOAK_ADMIN_PASSWORD: "${KEYCLOAK_ADMIN_PASSWORD}"
@@ -94,11 +92,13 @@ services:
       KC_DB: dev-mem
     ports:
       - "8080:8080"
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import
     networks:
       - grc_net
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "curl -fs http://localhost:8080/health/ready || exit 1"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8080' 2>/dev/null && echo ok || exit 1"]
       interval: 20s
       timeout: 10s
       retries: 10

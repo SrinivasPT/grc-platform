@@ -30,13 +30,13 @@
       "directAccessGrantsEnabled": false,
       "redirectUris": [
         "http://localhost:3000/*",
-        "https://${KEYCLOAK_HOSTNAME}/*"
+        "http://localhost:3000"
       ],
       "webOrigins": [
         "http://localhost:3000",
         "+"
       ],
-      "defaultScopes": ["openid", "profile", "email", "roles"]
+      "defaultClientScopes": ["openid", "profile", "email", "roles"]
     },
     {
       "clientId": "grc-api",
@@ -46,7 +46,7 @@
       "serviceAccountsEnabled": true,
       "standardFlowEnabled": false,
       "secret": "${KEYCLOAK_CLIENT_SECRET}",
-      "defaultScopes": ["openid"]
+      "defaultClientScopes": ["openid"]
     }
   ],
   "roles": {
