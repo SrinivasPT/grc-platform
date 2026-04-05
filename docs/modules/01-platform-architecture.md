@@ -37,7 +37,7 @@ The platform is built as a **relational data platform with a domain-aware rule e
 └─────────────────────────────┬────────────────────────────────────────┘
                               │ HTTPS
 ┌─────────────────────────────▼────────────────────────────────────────┐
-│  API LAYER (Spring Boot 3.3.x / Java 21)                             │
+│  API LAYER (Spring Boot 3.5.x / Java 21)                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────────────────┐   │
 │  │ GraphQL      │  │ REST (MVC)   │  │ Auth Filter (JWT/SAML)   │   │
 │  │ Controllers  │  │ Controllers  │  │ Tenant Resolver          │   │
@@ -85,12 +85,12 @@ The platform is built as a **relational data platform with a domain-aware rule e
 
 **Why React (not Angular/Vue):** Component model aligns with config-driven UI — each field type is a component, each layout is a component tree. The ecosystem for data-heavy applications (Apollo, React Query, TanStack Table) is unmatched.
 
-### 4.2 API Layer — Java 21 / Spring Boot 3.3.x
+### 4.2 API Layer — Java 21 / Spring Boot 3.5.x
 
 | Decision | Detail |
 |----------|--------|
 | Runtime | Java 21 LTS |
-| Framework | Spring Boot 3.3.x |
+| Framework | Spring Boot 3.5.x |
 | GraphQL | Spring for GraphQL 1.3.x; `@BatchMapping` on all collection resolvers |
 | REST | Spring MVC (file upload, webhooks, integration APIs, OAuth2 callbacks) |
 | Security | Spring Security 6.x — OAuth2 Resource Server (Keycloak JWT) |
@@ -252,9 +252,11 @@ This ensures RLS is correctly applied for all queries regardless of whether they
 ## 8. Deployment Model
 
 ### Local Development
-- Docker Compose: SQL Server 2025 Developer Edition + Neo4j 5 Community
+- Docker Compose: **SQL Server 2025** Developer Edition + Neo4j 5 Community
 - Spring Boot app runs locally (Gradle bootRun)
 - Vite dev server for React with proxy to Spring Boot
+- **Tekton** for CI/CD in local environment
+- Use **Password valut** for secret management
 
 ### Production (Target)
 - Containerized: All services in Docker containers

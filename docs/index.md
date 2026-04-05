@@ -83,7 +83,7 @@ A "100-year architecture" needs: backup/restore procedures, database migration s
 | Item | Current State | Corrected Approach |
 |---|---|---|
 | GraphQL | Mentioned as optional | Adopted as primary API layer; REST only for file upload, webhooks, and legacy integrations |
-| Java version | "Latest LTS" | Java 21 LTS with Spring Boot 3.3.x, Spring GraphQL, Spring Security |
+| Java version | "Latest LTS" | Java 21 LTS with Spring Boot 3.5.x, Spring GraphQL, Spring Security |
 | Neo4j sync | "Projection Worker" (undefined) | Change Data Capture (CDC) via SQL Server change tracking → async event queue → Neo4j writer |
 | Rule DSL | Arithmetic only shown | Full DSL covering: arithmetic, comparison, logical, aggregation, lookup, conditional, string ops |
 | Form system | Implied | Explicit Form & Layout Engine module with JSON schema spec |
@@ -204,7 +204,7 @@ Modules are organized into three tiers. **Each module is independently designed,
 |-------|-----------|---------|-----------|
 | Frontend | React | 18.x | Component model fits config-driven UI; rich ecosystem |
 | API | GraphQL | Spring GraphQL 1.3.x | Self-documenting, efficient data fetching, subscriptions for real-time |
-| API (secondary) | REST (Spring MVC) | Spring Boot 3.3.x | File upload, webhooks, third-party integrations |
+| API (secondary) | REST (Spring MVC) | Spring Boot 3.5.x | File upload, webhooks, third-party integrations |
 | Backend | Java | 21 LTS | Virtual threads, records, sealed classes; production-stable |
 | Framework | Spring Boot | 3.3.x | Mature, enterprise-grade, excellent security integration |
 | Primary DB | SQL Server | 2025 | ACID, JSON support, change tracking for CDC, full-text search |

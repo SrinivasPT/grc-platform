@@ -43,7 +43,7 @@ This revision keeps the original design's strengths (typed field values, determi
 └─────────────────────────────┬────────────────────────────────────────┘
                               │ HTTPS (TLS 1.3)
 ┌─────────────────────────────▼────────────────────────────────────────┐
-│  API GATEWAY (Spring Boot 3.3 / Java 21)                             │
+│  API GATEWAY (Spring Boot 3.5 / Java 21)                             │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │
 │  │ GraphQL      │  │ REST         │  │ Auth Filter (JWT/SAML)    │  │
 │  │ + depth/cost │  │ (files,hooks,│  │ Idempotency Filter        │  │
@@ -1589,7 +1589,7 @@ public interface MigrationReconciler {
 | State/API | Apollo Client (GraphQL) + Zustand | Latest |
 | Charts | Recharts | Latest |
 | Build (FE) | Vite | Latest |
-| Backend | Java 21 LTS + Spring Boot 3.3 | 21 / 3.3.x |
+| Backend | Java 21 LTS + Spring Boot 3.5 | 21 / 3.3.x |
 | GraphQL | Spring for GraphQL | 1.3.x |
 | Security | Spring Security 6 (OAuth2/SAML2) | 6.x |
 | ORM | Hibernate 6 + Spring Data JPA | 6.x |
