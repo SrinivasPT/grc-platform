@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Add graph_updated_at to records table to track graph sync freshness.
+         graphSyncPending = records.updated_at > graph_updated_at
+         NULL means the record has never been projected to Neo4j. -->
+    <changeSet id="V20260405_011_graph-sync-01" author="grc-platform" context="main">
+        <addColumn tableName="records">
+            <column name="graph_updated_at" type="DATETIME2"/>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="records" columnName="graph_updated_at"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Enable Change Tracking on record_relations for graph projection.
+         records table CT was already enabled in V20260405_003 migration. -->
+    <changeSet id="V20260405_011_graph-sync-02" author="grc-platform" context="main">
+        <sql>
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.change_tracking_tables
+                WHERE object_id = OBJECT_ID('record_relations')
+            )
+            BEGIN
+                ALTER TABLE record_relations
+                ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED = OFF);
+            END
+        </sql>
+        <rollback>
+            <sql>
+                ALTER TABLE record_relations DISABLE CHANGE_TRACKING;
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

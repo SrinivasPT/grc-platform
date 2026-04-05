@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- notification_templates — HTML/text templates with variable interpolation -->
+    <changeSet id="V20260405_010_notif-01" author="grc-platform" context="main">
+        <createTable tableName="notification_templates">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER"/>
+            <!-- NULL = system template shared across all orgs -->
+            <column name="key" type="NVARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel" type="NVARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="subject" type="NVARCHAR(500)"/>
+            <column name="body_html" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="body_text" type="NVARCHAR(MAX)"/>
+            <column name="variables" type="NVARCHAR(MAX)"/>
+            <column name="is_system" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_mandatory" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="notification_templates"
+                             columnNames="org_id, key, channel"
+                             constraintName="uq_notif_tmpl_key"/>
+        <rollback>
+            <dropUniqueConstraint tableName="notification_templates"
+                                  constraintName="uq_notif_tmpl_key"/>
+            <dropTable tableName="notification_templates"/>
+        </rollback>
+    </changeSet>
+
+    <!-- notification_rules — rule-triggered notification definitions -->
+    <changeSet id="V20260405_010_notif-02" author="grc-platform" context="main">
+        <createTable tableName="notification_rules">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="application_id" type="UNIQUEIDENTIFIER"/>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trigger_type" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trigger_config" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="condition_dsl" type="NVARCHAR(MAX)"/>
+            <column name="recipients" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template_key" type="NVARCHAR(200)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel" type="NVARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="notification_rules" indexName="ix_notif_rules_org_active">
+            <column name="org_id"/>
+            <column name="is_active"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="notification_rules" indexName="ix_notif_rules_org_active"/>
+            <dropTable tableName="notification_rules"/>
+        </rollback>
+    </changeSet>
+
+    <!-- notification_outbox — delivery queue per recipient (from transactional outbox events) -->
+    <changeSet id="V20260405_010_notif-03" author="grc-platform" context="main">
+        <createTable tableName="notification_outbox">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="rule_id" type="UNIQUEIDENTIFIER"/>
+            <column name="channel" type="NVARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_type" type="NVARCHAR(20)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_id" type="UNIQUEIDENTIFIER"/>
+            <column name="recipient_email" type="NVARCHAR(320)"/>
+            <column name="recipient_url" type="NVARCHAR(2000)"/>
+            <column name="subject" type="NVARCHAR(500)"/>
+            <column name="body" type="NVARCHAR(MAX)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="NVARCHAR(20)" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempt_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="last_attempt_at" type="DATETIME2"/>
+            <column name="sent_at" type="DATETIME2"/>
+            <column name="error" type="NVARCHAR(2000)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="notification_outbox" indexName="ix_notif_outbox_status">
+            <column name="status"/>
+            <column name="created_at"/>
+        </createIndex>
+        <createIndex tableName="notification_outbox" indexName="ix_notif_outbox_recipient">
+            <column name="recipient_id"/>
+            <column name="status"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="notification_outbox" indexName="ix_notif_outbox_recipient"/>
+            <dropIndex tableName="notification_outbox" indexName="ix_notif_outbox_status"/>
+            <dropTable tableName="notification_outbox"/>
+        </rollback>
+    </changeSet>
+
+    <!-- in_app_notifications — delivered to the user's bell-icon inbox via GraphQL -->
+    <changeSet id="V20260405_010_notif-04" author="grc-platform" context="main">
+        <createTable tableName="in_app_notifications">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="body" type="NVARCHAR(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="link_url" type="NVARCHAR(500)"/>
+            <column name="is_read" type="BIT" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="in_app_notifications" indexName="ix_in_app_notif_recipient">
+            <column name="org_id"/>
+            <column name="recipient_id"/>
+            <column name="is_read"/>
+            <column name="created_at"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="in_app_notifications" indexName="ix_in_app_notif_recipient"/>
+            <dropTable tableName="in_app_notifications"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

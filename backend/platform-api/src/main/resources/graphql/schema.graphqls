@@ -3,12 +3,63 @@ type Query {
     records(applicationId: ID!, page: Int = 0, size: Int = 20): GrcRecordPage!
     application(id: ID!): Application
     applications: [Application!]!
+    workflowInstance(recordId: ID!): WorkflowInstance
+    workflowHistory(instanceId: ID!): [WorkflowHistoryEntry!]!
+    myWorkflowTasks(status: String): [WorkflowTask!]!
 }
 
 type Mutation {
     createRecord(input: CreateRecordInput!): GrcRecord!
     updateRecord(input: UpdateRecordInput!): GrcRecord!
     deleteRecord(id: ID!): Boolean!
+    startWorkflow(input: StartWorkflowInput!): WorkflowInstance!
+    transitionWorkflow(input: TransitionWorkflowInput!): WorkflowInstance!
+}
+
+# ─── Workflow types ───────────────────────────────────────────────────────────
+
+type WorkflowInstance {
+    id: ID!
+    recordId: ID!
+    definitionId: ID!
+    currentState: String!
+    status: String!
+    enteredStateAt: String!
+    version: Int!
+}
+
+type WorkflowHistoryEntry {
+    id: ID!
+    instanceId: ID!
+    fromState: String!
+    toState: String!
+    transitionKey: String!
+    actorId: ID!
+    comment: String
+    transitionedAt: String!
+}
+
+type WorkflowTask {
+    id: ID!
+    instanceId: ID!
+    taskKey: String!
+    assignedTo: ID
+    dueDate: String
+    status: String!
+    createdAt: String!
+}
+
+input StartWorkflowInput {
+    recordId: ID!
+    applicationId: ID!
+    idempotencyKey: String!
+}
+
+input TransitionWorkflowInput {
+    instanceId: ID!
+    transitionKey: String!
+    comment: String
+    idempotencyKey: String!
 }
 
 # ─── Core domain types ────────────────────────────────────────────────────────

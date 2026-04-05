@@ -27,6 +27,12 @@
     <include file="sql/V20260405_009_infrastructure-schema.xml"
              relativeToChangelogFile="true"/>
 
+    <!-- Phase 3: Workflow, Notification & Graph schema additions -->
+    <include file="sql/V20260405_010_notification-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260405_011_graph-sync-schema.xml"
+             relativeToChangelogFile="true"/>
+
     <!-- Test seed data (context: test — never runs in production) -->
     <include file="sql/V20260405_T001_seed-test-org.xml"
              relativeToChangelogFile="true"/>

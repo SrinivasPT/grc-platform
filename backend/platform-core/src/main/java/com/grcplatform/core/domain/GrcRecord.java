@@ -45,6 +45,9 @@ public class GrcRecord extends BaseEntity {
     @Column(name = "updated_by", nullable = false)
     private UUID updatedBy;
 
+    @Column(name = "graph_updated_at")
+    private Instant graphUpdatedAt;
+
     public UUID getApplicationId() {
         return applicationId;
     }
@@ -87,6 +90,10 @@ public class GrcRecord extends BaseEntity {
 
     public UUID getUpdatedBy() {
         return updatedBy;
+    }
+
+    public Instant getGraphUpdatedAt() {
+        return graphUpdatedAt;
     }
 
     public void setDisplayName(String displayName) {

@@ -29,6 +29,9 @@ dependencies {
     // SQL Server driver
     runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11'
 
+    // Neo4j driver (for wiring GraphProjectionWorker)
+    implementation 'org.springframework.boot:spring-boot-starter-data-neo4j'
+
     // Liquibase (runs at startup)
     implementation 'org.liquibase:liquibase-core:4.28.0'
 

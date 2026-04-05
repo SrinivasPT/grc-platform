@@ -16,17 +16,35 @@ import com.grcplatform.core.repository.FieldValueReferenceRepository;
 import com.grcplatform.core.repository.FieldValueTextRepository;
 import com.grcplatform.core.repository.GrcRecordRepository;
 import com.grcplatform.core.repository.RuleDefinitionRepository;
+import com.grcplatform.core.repository.WorkflowDefinitionRepository;
+import com.grcplatform.core.repository.WorkflowHistoryRepository;
+import com.grcplatform.core.repository.WorkflowInstanceRepository;
+import com.grcplatform.core.repository.WorkflowTaskRepository;
 import com.grcplatform.core.rule.ComputeRuleEvaluator;
 import com.grcplatform.core.rule.RuleDslParser;
 import com.grcplatform.core.rule.TriggerRuleEvaluator;
 import com.grcplatform.core.rule.ValidateRuleEvaluator;
 import com.grcplatform.core.service.RecordService;
 import com.grcplatform.core.service.RecordServiceImpl;
+import com.grcplatform.core.workflow.WorkflowConfigParser;
+import com.grcplatform.core.workflow.WorkflowService;
+import com.grcplatform.workflow.EscalationManagerResolver;
+import com.grcplatform.workflow.EscalationScheduler;
+import com.grcplatform.workflow.WorkflowEngine;
+import com.grcplatform.workflow.WorkflowOutboxPublisher;
+import com.grcplatform.core.repository.InAppNotificationRepository;
+import com.grcplatform.notification.OutboxEventRouter;
+import com.grcplatform.notification.OutboxWorker;
+import com.grcplatform.notification.delivery.InAppDeliveryService;
+import com.grcplatform.graph.ChangeTrackingRepository;
+import com.grcplatform.graph.GraphProjectionWorker;
+import com.grcplatform.graph.GraphSyncStateRepository;
+import org.neo4j.driver.Driver;
 
 /**
- * Wires platform-core services as Spring beans. platform-core has zero Spring Boot dependency, so
- * classes are instantiated here rather than via @Service annotations (see ADR-001 and module
- * boundary rules).
+ * Wires platform-core and platform-workflow services as Spring beans. platform-core has zero Spring
+ * Boot dependency, so classes are instantiated here rather than via @Service annotations (see
+ * ADR-001 and module boundary rules).
  */
 @Configuration
 public class ServiceConfig {
@@ -74,5 +92,67 @@ public class ServiceConfig {
                 numberRepository, dateRepository, referenceRepository, outboxRepository,
                 auditService, ruleDslParser, computeEvaluator, validateEvaluator, triggerEvaluator,
                 objectMapper);
+    }
+
+    // ─── Workflow ────────────────────────────────────────────────────────────
+
+    @Bean
+    public WorkflowConfigParser workflowConfigParser() {
+        return new WorkflowConfigParser();
+    }
+
+    @Bean
+    public WorkflowOutboxPublisher workflowOutboxPublisher(EventOutboxRepository outboxRepository,
+            ObjectMapper objectMapper) {
+        return new WorkflowOutboxPublisher(outboxRepository, objectMapper);
+    }
+
+    @Bean
+    public WorkflowService workflowService(WorkflowDefinitionRepository definitionRepository,
+            WorkflowInstanceRepository instanceRepository,
+            WorkflowHistoryRepository historyRepository,
+            WorkflowTaskRepository taskRepository,
+            EventOutboxRepository outboxRepository,
+            WorkflowConfigParser workflowConfigParser,
+            WorkflowOutboxPublisher workflowOutboxPublisher) {
+        return new WorkflowEngine(definitionRepository, instanceRepository, historyRepository,
+                taskRepository, outboxRepository, workflowConfigParser, workflowOutboxPublisher);
+    }
+
+    @Bean
+    public EscalationScheduler escalationScheduler(WorkflowTaskRepository taskRepository,
+            WorkflowOutboxPublisher workflowOutboxPublisher,
+            EscalationManagerResolver escalationManagerResolver) {
+        return new EscalationScheduler(taskRepository, workflowOutboxPublisher,
+                escalationManagerResolver);
+    }
+
+    // ─── Notification ─────────────────────────────────────────────────────────
+
+    @Bean
+    public InAppDeliveryService inAppDeliveryService(InAppNotificationRepository notificationRepository) {
+        return new InAppDeliveryService(notificationRepository);
+    }
+
+    @Bean
+    public OutboxEventRouter outboxEventRouter(InAppDeliveryService inAppDeliveryService,
+            ObjectMapper objectMapper) {
+        return new OutboxEventRouter(inAppDeliveryService, objectMapper);
+    }
+
+    @Bean
+    public OutboxWorker outboxWorker(EventOutboxRepository outboxRepository,
+            OutboxEventRouter outboxEventRouter) {
+        return new OutboxWorker(outboxRepository, outboxEventRouter);
+    }
+
+    // ─── Graph Projection ─────────────────────────────────────────────────────
+
+    @Bean
+    public GraphProjectionWorker graphProjectionWorker(ChangeTrackingRepository changeTrackingRepository,
+            GraphSyncStateRepository graphSyncStateRepository,
+            Driver neo4jDriver) {
+        return new GraphProjectionWorker(changeTrackingRepository, graphSyncStateRepository,
+                neo4jDriver);
     }
 }

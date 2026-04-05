@@ -1,9 +1,12 @@
 apply plugin: 'io.spring.dependency-management'
 
 dependencies {
+    implementation project(':platform-core')
+
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     // Scheduling support is included in spring-boot-starter (via spring-context)
     implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'com.fasterxml.jackson.core:jackson-databind'
 
     testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
     testImplementation 'org.assertj:assertj-core:3.26.0'
@@ -14,6 +17,7 @@ dependencies {
     testImplementation "org.testcontainers:mssqlserver:${rootProject.ext.testcontainersVersion}"
     runtimeOnly 'com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11'
     testRuntimeOnly 'ch.qos.logback:logback-classic:1.5.6'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 dependencyManagement {
