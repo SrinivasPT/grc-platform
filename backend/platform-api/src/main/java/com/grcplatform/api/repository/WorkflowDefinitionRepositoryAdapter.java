@@ -1,12 +1,11 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.WorkflowDefinition;
-import com.grcplatform.core.repository.WorkflowDefinitionRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.stereotype.Repository;
+import com.grcplatform.core.domain.WorkflowDefinition;
+import com.grcplatform.core.repository.WorkflowDefinitionRepository;
 
 @Repository
 public class WorkflowDefinitionRepositoryAdapter implements WorkflowDefinitionRepository {
@@ -34,8 +33,6 @@ public class WorkflowDefinitionRepositoryAdapter implements WorkflowDefinitionRe
 
     @Override
     public List<WorkflowDefinition> findByOrgId(UUID orgId) {
-        return jpa.findAll().stream()
-                .filter(d -> orgId.equals(d.getOrgId()))
-                .toList();
+        return jpa.findAll().stream().filter(d -> orgId.equals(d.getOrgId())).toList();
     }
 }

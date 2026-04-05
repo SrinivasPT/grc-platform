@@ -1,8 +1,12 @@
 package com.grcplatform.core.domain;
 
-import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "in_app_notifications")
@@ -39,14 +43,37 @@ public class InAppNotification {
         createdAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public UUID getRecipientId() { return recipientId; }
-    public String getTitle() { return title; }
-    public String getBody() { return body; }
-    public String getLinkUrl() { return linkUrl; }
-    public boolean isRead() { return read; }
-    public Instant getCreatedAt() { return createdAt; }
+    public UUID getId() {
+        return id;
+    }
+
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public UUID getRecipientId() {
+        return recipientId;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public String getLinkUrl() {
+        return linkUrl;
+    }
+
+    public boolean isRead() {
+        return read;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
 
     public static InAppNotification create(UUID orgId, UUID recipientId, String title, String body,
             String linkUrl) {
@@ -59,5 +86,7 @@ public class InAppNotification {
         return n;
     }
 
-    public void markRead() { this.read = true; }
+    public void markRead() {
+        this.read = true;
+    }
 }

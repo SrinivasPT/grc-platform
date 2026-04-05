@@ -1,20 +1,18 @@
 package com.grcplatform.graph.model;
 
+import java.time.Instant;
+import java.util.UUID;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Property;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
 /**
- * Neo4j node representing a GRC record.
- * Carries the labels: [:GrcRecord] + [:AppKey] (dynamic, applied via Cypher MERGE).
+ * Neo4j node representing a GRC record. Carries the labels: [:GrcRecord] + [:AppKey] (dynamic,
+ * applied via Cypher MERGE).
  *
- * Only key/indexed properties are projected — not all field values.
- * Full details are always fetched from SQL Server.
+ * Only key/indexed properties are projected — not all field values. Full details are always fetched
+ * from SQL Server.
  */
 @Node("GrcRecord")
 public class RecordNode {
@@ -59,15 +57,47 @@ public class RecordNode {
         return n;
     }
 
-    public String getId() { return id; }
-    public String getOrgId() { return orgId; }
-    public String getAppKey() { return appKey; }
-    public String getDisplayName() { return displayName; }
-    public String getStatus() { return status; }
-    public String getWorkflowState() { return workflowState; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setStatus(String status) { this.status = status; }
-    public void setWorkflowState(String workflowState) { this.workflowState = workflowState; }
-    public void setDisplayName(String displayName) { this.displayName = displayName; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public String getId() {
+        return id;
+    }
+
+    public String getOrgId() {
+        return orgId;
+    }
+
+    public String getAppKey() {
+        return appKey;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public String getWorkflowState() {
+        return workflowState;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setWorkflowState(String workflowState) {
+        this.workflowState = workflowState;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+
+    public void setUpdatedAt(Instant updatedAt) {
+        this.updatedAt = updatedAt;
+    }
 }

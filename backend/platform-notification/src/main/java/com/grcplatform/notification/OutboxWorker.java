@@ -11,12 +11,10 @@ import java.util.List;
 /**
  * Polls the event_outbox table and dispatches events to the appropriate consumer.
  *
- * Design:
- * - At-least-once delivery: events may be dispatched more than once on restart; consumers are
- *   idempotent.
- * - Events that exceed MAX_RETRIES are moved to event_outbox_dlq by the repository.
- * - All routing is done by OutboxEventRouter — this class only polls and marks status.
- * - org_id context is NOT required here — this is a background worker.
+ * Design: - At-least-once delivery: events may be dispatched more than once on restart; consumers
+ * are idempotent. - Events that exceed MAX_RETRIES are moved to event_outbox_dlq by the repository.
+ * - All routing is done by OutboxEventRouter — this class only polls and marks status. - org_id
+ * context is NOT required here — this is a background worker.
  */
 public class OutboxWorker {
 
@@ -47,8 +45,8 @@ public class OutboxWorker {
             eventRouter.route(event);
             outboxRepository.markProcessed(event.getId());
         } catch (Exception e) {
-            log.warn("Failed to process outbox event {} (type={}): {}",
-                    event.getId(), event.getEventType(), e.getMessage());
+            log.warn("Failed to process outbox event {} (type={}): {}", event.getId(),
+                    event.getEventType(), e.getMessage());
             outboxRepository.markFailed(event.getId(), e.getMessage());
         }
     }

@@ -54,23 +54,64 @@ public class WorkflowInstance {
         updatedAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public UUID getRecordId() { return recordId; }
-    public UUID getDefinitionId() { return definitionId; }
-    public String getCurrentState() { return currentState; }
-    public String getStatus() { return status; }
-    public Instant getEnteredStateAt() { return enteredStateAt; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public int getVersion() { return version; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setOrgId(UUID orgId) { this.orgId = orgId; }
-    public void setRecordId(UUID recordId) { this.recordId = recordId; }
-    public void setDefinitionId(UUID definitionId) { this.definitionId = definitionId; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public UUID getRecordId() {
+        return recordId;
+    }
+
+    public UUID getDefinitionId() {
+        return definitionId;
+    }
+
+    public String getCurrentState() {
+        return currentState;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public Instant getEnteredStateAt() {
+        return enteredStateAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setRecordId(UUID recordId) {
+        this.recordId = recordId;
+    }
+
+    public void setDefinitionId(UUID definitionId) {
+        this.definitionId = definitionId;
+    }
+
     public void setCurrentState(String currentState) {
         this.currentState = currentState;
         this.enteredStateAt = Instant.now();
     }
-    public void setStatus(String status) { this.status = status; }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }

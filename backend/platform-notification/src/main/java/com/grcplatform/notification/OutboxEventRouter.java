@@ -12,10 +12,9 @@ import java.util.Map;
 /**
  * Routes outbox events to the correct delivery service based on event_type.
  *
- * Supported event types:
- * - WORKFLOW_STARTED         → in-app notification to initiator
- * - WORKFLOW_TRANSITIONED    → in-app notification to task assignees
- * - WORKFLOW_TASK_ESCALATED  → in-app notification to escalated-to user
+ * Supported event types: - WORKFLOW_STARTED → in-app notification to initiator -
+ * WORKFLOW_TRANSITIONED → in-app notification to task assignees - WORKFLOW_TASK_ESCALATED → in-app
+ * notification to escalated-to user
  *
  * All other event types are logged and skipped (routed in Phase 4+ by integration module).
  */
@@ -47,7 +46,8 @@ public class OutboxEventRouter {
         try {
             return objectMapper.readValue(json, MAP_TYPE);
         } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to parse outbox payload: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Failed to parse outbox payload: " + e.getMessage(),
+                    e);
         }
     }
 }

@@ -85,11 +85,16 @@ class WorkflowEngineTest {
             }
             """;
 
-    @Mock WorkflowDefinitionRepository definitionRepo;
-    @Mock WorkflowInstanceRepository instanceRepo;
-    @Mock WorkflowHistoryRepository historyRepo;
-    @Mock WorkflowTaskRepository taskRepo;
-    @Mock EventOutboxRepository outboxRepo;
+    @Mock
+    WorkflowDefinitionRepository definitionRepo;
+    @Mock
+    WorkflowInstanceRepository instanceRepo;
+    @Mock
+    WorkflowHistoryRepository historyRepo;
+    @Mock
+    WorkflowTaskRepository taskRepo;
+    @Mock
+    EventOutboxRepository outboxRepo;
 
     WorkflowEngine engine;
     UUID orgId;
@@ -101,8 +106,8 @@ class WorkflowEngineTest {
         WorkflowConfigParser parser = new WorkflowConfigParser();
         ObjectMapper objectMapper = new ObjectMapper();
         WorkflowOutboxPublisher publisher = new WorkflowOutboxPublisher(outboxRepo, objectMapper);
-        engine = new WorkflowEngine(definitionRepo, instanceRepo, historyRepo, taskRepo,
-                outboxRepo, parser, publisher);
+        engine = new WorkflowEngine(definitionRepo, instanceRepo, historyRepo, taskRepo, outboxRepo,
+                parser, publisher);
         orgId = UUID.randomUUID();
         actorId = UUID.randomUUID();
         sharedDefId = UUID.randomUUID();

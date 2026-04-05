@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Publishes workflow events to the transactional outbox.
- * All outbox writes happen within the caller's transaction (never as a direct side effect).
+ * Publishes workflow events to the transactional outbox. All outbox writes happen within the
+ * caller's transaction (never as a direct side effect).
  */
 public class WorkflowOutboxPublisher {
 
@@ -27,30 +27,27 @@ public class WorkflowOutboxPublisher {
     public void publishWorkflowStarted(WorkflowInstance instance, String initialState,
             UUID actorId) {
         publish(instance.getOrgId(), "WORKFLOW_STARTED", "WorkflowInstance", instance.getId(),
-                Map.of("instanceId", instance.getId().toString(),
-                        "recordId", instance.getRecordId().toString(),
-                        "initialState", initialState,
-                        "actorId", actorId.toString()));
+                Map.of("instanceId", instance.getId().toString(), "recordId",
+                        instance.getRecordId().toString(), "initialState", initialState, "actorId",
+                        actorId.toString()));
     }
 
     public void publishTransitioned(WorkflowInstance instance, TransitionConfig transition,
             UUID actorId, String toState) {
         publish(instance.getOrgId(), "WORKFLOW_TRANSITIONED", "WorkflowInstance", instance.getId(),
-                Map.of("instanceId", instance.getId().toString(),
-                        "recordId", instance.getRecordId().toString(),
-                        "fromState", instance.getCurrentState(),
-                        "toState", toState,
-                        "transitionKey", transition.key(),
-                        "actorId", actorId.toString()));
+                Map.of("instanceId", instance.getId().toString(), "recordId",
+                        instance.getRecordId().toString(), "fromState", instance.getCurrentState(),
+                        "toState", toState, "transitionKey", transition.key(), "actorId",
+                        actorId.toString()));
     }
 
     public void publishEscalated(UUID orgId, UUID taskId, UUID instanceId, UUID originalAssignee,
             UUID escalatedTo) {
         publish(orgId, "WORKFLOW_TASK_ESCALATED", "WorkflowTask", taskId,
-                Map.of("taskId", taskId.toString(),
-                        "instanceId", instanceId.toString(),
-                        "originalAssignee", originalAssignee != null ? originalAssignee.toString() : "",
-                        "escalatedTo", escalatedTo.toString()));
+                Map.of("taskId", taskId.toString(), "instanceId", instanceId.toString(),
+                        "originalAssignee",
+                        originalAssignee != null ? originalAssignee.toString() : "", "escalatedTo",
+                        escalatedTo.toString()));
     }
 
     private void publish(UUID orgId, String eventType, String aggregateType, UUID aggregateId,

@@ -1,10 +1,9 @@
 package com.grcplatform.api.repository;
 
+import java.util.UUID;
+import org.springframework.stereotype.Repository;
 import com.grcplatform.core.domain.GraphSyncState;
 import com.grcplatform.graph.GraphSyncStateRepository;
-import org.springframework.stereotype.Repository;
-
-import java.util.UUID;
 
 @Repository
 public class GraphSyncStateRepositoryAdapter implements GraphSyncStateRepository {
@@ -17,8 +16,7 @@ public class GraphSyncStateRepositoryAdapter implements GraphSyncStateRepository
 
     @Override
     public long getLastSyncVersion(UUID orgId, String entityType) {
-        return jpa.findByOrgIdAndEntityType(orgId, entityType)
-                .map(GraphSyncState::getLastCtVersion)
+        return jpa.findByOrgIdAndEntityType(orgId, entityType).map(GraphSyncState::getLastCtVersion)
                 .orElse(0L);
     }
 

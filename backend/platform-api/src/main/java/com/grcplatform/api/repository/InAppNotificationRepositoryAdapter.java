@@ -1,11 +1,10 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.InAppNotification;
-import com.grcplatform.core.repository.InAppNotificationRepository;
-import org.springframework.stereotype.Repository;
-
 import java.util.List;
 import java.util.UUID;
+import org.springframework.stereotype.Repository;
+import com.grcplatform.core.domain.InAppNotification;
+import com.grcplatform.core.repository.InAppNotificationRepository;
 
 @Repository
 public class InAppNotificationRepositoryAdapter implements InAppNotificationRepository {

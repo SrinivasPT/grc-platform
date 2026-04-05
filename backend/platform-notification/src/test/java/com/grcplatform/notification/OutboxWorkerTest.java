@@ -21,8 +21,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class OutboxWorkerTest {
 
-    @Mock EventOutboxRepository outboxRepo;
-    @Mock InAppNotificationRepository notifRepo;
+    @Mock
+    EventOutboxRepository outboxRepo;
+    @Mock
+    InAppNotificationRepository notifRepo;
 
     OutboxWorker worker;
     ObjectMapper objectMapper = new ObjectMapper();
@@ -80,8 +82,8 @@ class OutboxWorkerTest {
 
     @Test
     void processOutbox_skipsUnknownEventTypes_withoutError() {
-        EventOutbox event = EventOutbox.create(UUID.randomUUID(), "UNKNOWN_EVENT",
-                "SomeAggregate", UUID.randomUUID(), "{}");
+        EventOutbox event = EventOutbox.create(UUID.randomUUID(), "UNKNOWN_EVENT", "SomeAggregate",
+                UUID.randomUUID(), "{}");
         when(outboxRepo.findPendingEvents(anyInt())).thenReturn(List.of(event));
 
         worker.processOutbox();
@@ -97,16 +99,18 @@ class OutboxWorkerTest {
         String payload = """
                 {"instanceId":"%s","recordId":"%s","initialState":"draft","actorId":"%s"}
                 """.formatted(UUID.randomUUID(), UUID.randomUUID(), actorId);
-        return EventOutbox.create(UUID.randomUUID(), "WORKFLOW_STARTED",
-                "WorkflowInstance", UUID.randomUUID(), payload);
+        return EventOutbox.create(UUID.randomUUID(), "WORKFLOW_STARTED", "WorkflowInstance",
+                UUID.randomUUID(), payload);
     }
 
     private EventOutbox workflowTransitionedEvent() {
         UUID actorId = UUID.randomUUID();
-        String payload = """
-                {"instanceId":"%s","recordId":"%s","fromState":"draft","toState":"in_review","transitionKey":"submit","actorId":"%s"}
-                """.formatted(UUID.randomUUID(), UUID.randomUUID(), actorId);
-        return EventOutbox.create(UUID.randomUUID(), "WORKFLOW_TRANSITIONED",
-                "WorkflowInstance", UUID.randomUUID(), payload);
+        String payload =
+                """
+                        {"instanceId":"%s","recordId":"%s","fromState":"draft","toState":"in_review","transitionKey":"submit","actorId":"%s"}
+                        """
+                        .formatted(UUID.randomUUID(), UUID.randomUUID(), actorId);
+        return EventOutbox.create(UUID.randomUUID(), "WORKFLOW_TRANSITIONED", "WorkflowInstance",
+                UUID.randomUUID(), payload);
     }
 }

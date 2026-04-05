@@ -58,30 +58,103 @@ public class WorkflowTask {
         createdAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public UUID getInstanceId() { return instanceId; }
-    public String getTaskKey() { return taskKey; }
-    public UUID getAssignedTo() { return assignedTo; }
-    public UUID getAssignedGroupId() { return assignedGroupId; }
-    public Instant getDueDate() { return dueDate; }
-    public Integer getEscalationDays() { return escalationDays; }
-    public UUID getEscalatedTo() { return escalatedTo; }
-    public String getStatus() { return status; }
-    public Instant getCompletedAt() { return completedAt; }
-    public UUID getCompletedBy() { return completedBy; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Long getVersion() { return version; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setOrgId(UUID orgId) { this.orgId = orgId; }
-    public void setInstanceId(UUID instanceId) { this.instanceId = instanceId; }
-    public void setTaskKey(String taskKey) { this.taskKey = taskKey; }
-    public void setAssignedTo(UUID assignedTo) { this.assignedTo = assignedTo; }
-    public void setAssignedGroupId(UUID assignedGroupId) { this.assignedGroupId = assignedGroupId; }
-    public void setDueDate(Instant dueDate) { this.dueDate = dueDate; }
-    public void setEscalationDays(Integer escalationDays) { this.escalationDays = escalationDays; }
-    public void setEscalatedTo(UUID escalatedTo) { this.escalatedTo = escalatedTo; }
-    public void setStatus(String status) { this.status = status; }
-    public void setCompletedAt(Instant completedAt) { this.completedAt = completedAt; }
-    public void setCompletedBy(UUID completedBy) { this.completedBy = completedBy; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public UUID getInstanceId() {
+        return instanceId;
+    }
+
+    public String getTaskKey() {
+        return taskKey;
+    }
+
+    public UUID getAssignedTo() {
+        return assignedTo;
+    }
+
+    public UUID getAssignedGroupId() {
+        return assignedGroupId;
+    }
+
+    public Instant getDueDate() {
+        return dueDate;
+    }
+
+    public Integer getEscalationDays() {
+        return escalationDays;
+    }
+
+    public UUID getEscalatedTo() {
+        return escalatedTo;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public Instant getCompletedAt() {
+        return completedAt;
+    }
+
+    public UUID getCompletedBy() {
+        return completedBy;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setInstanceId(UUID instanceId) {
+        this.instanceId = instanceId;
+    }
+
+    public void setTaskKey(String taskKey) {
+        this.taskKey = taskKey;
+    }
+
+    public void setAssignedTo(UUID assignedTo) {
+        this.assignedTo = assignedTo;
+    }
+
+    public void setAssignedGroupId(UUID assignedGroupId) {
+        this.assignedGroupId = assignedGroupId;
+    }
+
+    public void setDueDate(Instant dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public void setEscalationDays(Integer escalationDays) {
+        this.escalationDays = escalationDays;
+    }
+
+    public void setEscalatedTo(UUID escalatedTo) {
+        this.escalatedTo = escalatedTo;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public void setCompletedAt(Instant completedAt) {
+        this.completedAt = completedAt;
+    }
+
+    public void setCompletedBy(UUID completedBy) {
+        this.completedBy = completedBy;
+    }
 }

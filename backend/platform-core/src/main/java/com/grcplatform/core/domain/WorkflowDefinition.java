@@ -50,19 +50,59 @@ public class WorkflowDefinition {
         updatedAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public UUID getApplicationId() { return applicationId; }
-    public String getName() { return name; }
-    public String getConfig() { return config; }
-    public boolean isActive() { return active; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public Long getVersion() { return version; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setOrgId(UUID orgId) { this.orgId = orgId; }
-    public void setApplicationId(UUID applicationId) { this.applicationId = applicationId; }
-    public void setName(String name) { this.name = name; }
-    public void setConfig(String config) { this.config = config; }
-    public void setActive(boolean active) { this.active = active; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public UUID getApplicationId() {
+        return applicationId;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public String getConfig() {
+        return config;
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    public void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setApplicationId(UUID applicationId) {
+        this.applicationId = applicationId;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setConfig(String config) {
+        this.config = config;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
 }

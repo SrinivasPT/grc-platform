@@ -40,7 +40,8 @@ public class WorkflowTaskRepositoryAdapter implements WorkflowTaskRepository {
     }
 
     @Override
-    public List<WorkflowTask> findByAssignedToAndStatus(UUID orgId, UUID assignedTo, String status) {
+    public List<WorkflowTask> findByAssignedToAndStatus(UUID orgId, UUID assignedTo,
+            String status) {
         return jpa.findByOrgIdAndAssignedToAndStatus(orgId, assignedTo, status);
     }
 

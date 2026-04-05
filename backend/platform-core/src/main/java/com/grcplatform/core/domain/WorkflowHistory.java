@@ -42,21 +42,67 @@ public class WorkflowHistory {
         transitionedAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public UUID getInstanceId() { return instanceId; }
-    public String getFromState() { return fromState; }
-    public String getToState() { return toState; }
-    public String getTransitionKey() { return transitionKey; }
-    public UUID getActorId() { return actorId; }
-    public String getComment() { return comment; }
-    public Instant getTransitionedAt() { return transitionedAt; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setOrgId(UUID orgId) { this.orgId = orgId; }
-    public void setInstanceId(UUID instanceId) { this.instanceId = instanceId; }
-    public void setFromState(String fromState) { this.fromState = fromState; }
-    public void setToState(String toState) { this.toState = toState; }
-    public void setTransitionKey(String transitionKey) { this.transitionKey = transitionKey; }
-    public void setActorId(UUID actorId) { this.actorId = actorId; }
-    public void setComment(String comment) { this.comment = comment; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public UUID getInstanceId() {
+        return instanceId;
+    }
+
+    public String getFromState() {
+        return fromState;
+    }
+
+    public String getToState() {
+        return toState;
+    }
+
+    public String getTransitionKey() {
+        return transitionKey;
+    }
+
+    public UUID getActorId() {
+        return actorId;
+    }
+
+    public String getComment() {
+        return comment;
+    }
+
+    public Instant getTransitionedAt() {
+        return transitionedAt;
+    }
+
+    public void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setInstanceId(UUID instanceId) {
+        this.instanceId = instanceId;
+    }
+
+    public void setFromState(String fromState) {
+        this.fromState = fromState;
+    }
+
+    public void setToState(String toState) {
+        this.toState = toState;
+    }
+
+    public void setTransitionKey(String transitionKey) {
+        this.transitionKey = transitionKey;
+    }
+
+    public void setActorId(UUID actorId) {
+        this.actorId = actorId;
+    }
+
+    public void setComment(String comment) {
+        this.comment = comment;
+    }
 }

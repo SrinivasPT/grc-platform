@@ -1,8 +1,10 @@
 package com.grcplatform.core.domain;
 
-import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Table;
 
 /**
  * A GrcRecord is one runtime instance of an Application entity. Named GrcRecord (not Record) to

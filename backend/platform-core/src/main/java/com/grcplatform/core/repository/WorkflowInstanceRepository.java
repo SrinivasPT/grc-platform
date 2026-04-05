@@ -14,8 +14,8 @@ public interface WorkflowInstanceRepository {
     Optional<WorkflowInstance> findByRecordId(UUID orgId, UUID recordId);
 
     /**
-     * Optimistic-lock update: sets current_state and increments version only if the
-     * current version matches. Returns the number of rows updated (0 = conflict).
+     * Optimistic-lock update: sets current_state and increments version only if the current version
+     * matches. Returns the number of rows updated (0 = conflict).
      */
     int updateStateIfVersion(UUID id, String newState, String newStatus, int expectedVersion);
 }

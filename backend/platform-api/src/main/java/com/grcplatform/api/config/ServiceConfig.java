@@ -1,5 +1,6 @@
 package com.grcplatform.api.config;
 
+import org.neo4j.driver.Driver;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +16,7 @@ import com.grcplatform.core.repository.FieldValueNumberRepository;
 import com.grcplatform.core.repository.FieldValueReferenceRepository;
 import com.grcplatform.core.repository.FieldValueTextRepository;
 import com.grcplatform.core.repository.GrcRecordRepository;
+import com.grcplatform.core.repository.InAppNotificationRepository;
 import com.grcplatform.core.repository.RuleDefinitionRepository;
 import com.grcplatform.core.repository.WorkflowDefinitionRepository;
 import com.grcplatform.core.repository.WorkflowHistoryRepository;
@@ -28,18 +30,16 @@ import com.grcplatform.core.service.RecordService;
 import com.grcplatform.core.service.RecordServiceImpl;
 import com.grcplatform.core.workflow.WorkflowConfigParser;
 import com.grcplatform.core.workflow.WorkflowService;
+import com.grcplatform.graph.ChangeTrackingRepository;
+import com.grcplatform.graph.GraphProjectionWorker;
+import com.grcplatform.graph.GraphSyncStateRepository;
+import com.grcplatform.notification.OutboxEventRouter;
+import com.grcplatform.notification.OutboxWorker;
+import com.grcplatform.notification.delivery.InAppDeliveryService;
 import com.grcplatform.workflow.EscalationManagerResolver;
 import com.grcplatform.workflow.EscalationScheduler;
 import com.grcplatform.workflow.WorkflowEngine;
 import com.grcplatform.workflow.WorkflowOutboxPublisher;
-import com.grcplatform.core.repository.InAppNotificationRepository;
-import com.grcplatform.notification.OutboxEventRouter;
-import com.grcplatform.notification.OutboxWorker;
-import com.grcplatform.notification.delivery.InAppDeliveryService;
-import com.grcplatform.graph.ChangeTrackingRepository;
-import com.grcplatform.graph.GraphProjectionWorker;
-import com.grcplatform.graph.GraphSyncStateRepository;
-import org.neo4j.driver.Driver;
 
 /**
  * Wires platform-core and platform-workflow services as Spring beans. platform-core has zero Spring
@@ -110,10 +110,8 @@ public class ServiceConfig {
     @Bean
     public WorkflowService workflowService(WorkflowDefinitionRepository definitionRepository,
             WorkflowInstanceRepository instanceRepository,
-            WorkflowHistoryRepository historyRepository,
-            WorkflowTaskRepository taskRepository,
-            EventOutboxRepository outboxRepository,
-            WorkflowConfigParser workflowConfigParser,
+            WorkflowHistoryRepository historyRepository, WorkflowTaskRepository taskRepository,
+            EventOutboxRepository outboxRepository, WorkflowConfigParser workflowConfigParser,
             WorkflowOutboxPublisher workflowOutboxPublisher) {
         return new WorkflowEngine(definitionRepository, instanceRepository, historyRepository,
                 taskRepository, outboxRepository, workflowConfigParser, workflowOutboxPublisher);
@@ -130,7 +128,8 @@ public class ServiceConfig {
     // ─── Notification ─────────────────────────────────────────────────────────
 
     @Bean
-    public InAppDeliveryService inAppDeliveryService(InAppNotificationRepository notificationRepository) {
+    public InAppDeliveryService inAppDeliveryService(
+            InAppNotificationRepository notificationRepository) {
         return new InAppDeliveryService(notificationRepository);
     }
 
@@ -149,9 +148,9 @@ public class ServiceConfig {
     // ─── Graph Projection ─────────────────────────────────────────────────────
 
     @Bean
-    public GraphProjectionWorker graphProjectionWorker(ChangeTrackingRepository changeTrackingRepository,
-            GraphSyncStateRepository graphSyncStateRepository,
-            Driver neo4jDriver) {
+    public GraphProjectionWorker graphProjectionWorker(
+            ChangeTrackingRepository changeTrackingRepository,
+            GraphSyncStateRepository graphSyncStateRepository, Driver neo4jDriver) {
         return new GraphProjectionWorker(changeTrackingRepository, graphSyncStateRepository,
                 neo4jDriver);
     }

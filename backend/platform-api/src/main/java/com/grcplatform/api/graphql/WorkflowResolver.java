@@ -20,8 +20,8 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * GraphQL resolver for workflow queries and mutations.
- * No @BatchMapping needed here — WorkflowInstance is a singleton per record, not a collection field.
+ * GraphQL resolver for workflow queries and mutations. No @BatchMapping needed here —
+ * WorkflowInstance is a singleton per record, not a collection field.
  */
 @Controller
 public class WorkflowResolver {
@@ -31,8 +31,7 @@ public class WorkflowResolver {
     private final WorkflowTaskRepository taskRepository;
 
     public WorkflowResolver(WorkflowService workflowService,
-            WorkflowHistoryRepository historyRepository,
-            WorkflowTaskRepository taskRepository) {
+            WorkflowHistoryRepository historyRepository, WorkflowTaskRepository taskRepository) {
         this.workflowService = workflowService;
         this.historyRepository = historyRepository;
         this.taskRepository = taskRepository;
@@ -59,16 +58,16 @@ public class WorkflowResolver {
     @MutationMapping
     public WorkflowInstanceDto startWorkflow(@Argument StartWorkflowInput input) {
         var ctx = SessionContextHolder.current();
-        var command = new StartWorkflowCommand(
-                input.recordId(), input.applicationId(), ctx.userId());
+        var command =
+                new StartWorkflowCommand(input.recordId(), input.applicationId(), ctx.userId());
         return workflowService.start(command);
     }
 
     @MutationMapping
     public WorkflowInstanceDto transitionWorkflow(@Argument TransitionWorkflowInput input) {
         var ctx = SessionContextHolder.current();
-        var command = new TransitionCommand(
-                input.instanceId(), input.transitionKey(), ctx.userId(), input.comment());
+        var command = new TransitionCommand(input.instanceId(), input.transitionKey(), ctx.userId(),
+                input.comment());
         return workflowService.transition(command);
     }
 }

@@ -12,11 +12,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 /**
  * Scheduled job that escalates overdue workflow tasks.
  *
- * Design rules:
- * - Runs hourly on a virtual thread.
- * - Escalation boundary: if no manager is available, task is escalated to a system-admin sentinel UUID.
- * - All escalation notifications are published to the event_outbox (never sent directly).
- * - org_id context is NOT required here — tasks carry their own orgId.
+ * Design rules: - Runs hourly on a virtual thread. - Escalation boundary: if no manager is
+ * available, task is escalated to a system-admin sentinel UUID. - All escalation notifications are
+ * published to the event_outbox (never sent directly). - org_id context is NOT required here —
+ * tasks carry their own orgId.
  */
 public class EscalationScheduler {
 
@@ -30,8 +29,7 @@ public class EscalationScheduler {
     private final EscalationManagerResolver managerResolver;
 
     public EscalationScheduler(WorkflowTaskRepository taskRepository,
-            WorkflowOutboxPublisher outboxPublisher,
-            EscalationManagerResolver managerResolver) {
+            WorkflowOutboxPublisher outboxPublisher, EscalationManagerResolver managerResolver) {
         this.taskRepository = taskRepository;
         this.outboxPublisher = outboxPublisher;
         this.managerResolver = managerResolver;

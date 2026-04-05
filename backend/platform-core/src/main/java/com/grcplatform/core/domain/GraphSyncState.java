@@ -1,8 +1,13 @@
 package com.grcplatform.core.domain;
 
-import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "graph_sync_state")
@@ -35,15 +40,37 @@ public class GraphSyncState {
         updatedAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public String getEntityType() { return entityType; }
-    public long getLastCtVersion() { return lastCtVersion; }
-    public Instant getUpdatedAt() { return updatedAt; }
+    public UUID getId() {
+        return id;
+    }
 
-    public void setOrgId(UUID orgId) { this.orgId = orgId; }
-    public void setEntityType(String entityType) { this.entityType = entityType; }
-    public void setLastCtVersion(long version) { this.lastCtVersion = version; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public String getEntityType() {
+        return entityType;
+    }
+
+    public long getLastCtVersion() {
+        return lastCtVersion;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
+
+    public void setEntityType(String entityType) {
+        this.entityType = entityType;
+    }
+
+    public void setLastCtVersion(long version) {
+        this.lastCtVersion = version;
+    }
 
     public static GraphSyncState create(UUID orgId, String entityType) {
         GraphSyncState s = new GraphSyncState();

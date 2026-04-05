@@ -8,8 +8,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Delivers in-app (bell-icon) notifications for workflow events.
- * Notifications are stored in the in_app_notifications table and polled by the frontend.
+ * Delivers in-app (bell-icon) notifications for workflow events. Notifications are stored in the
+ * in_app_notifications table and polled by the frontend.
  */
 public class InAppDeliveryService {
 
@@ -23,11 +23,8 @@ public class InAppDeliveryService {
         UUID actorId = uuidFrom(payload, "actorId");
         String recordId = stringFrom(payload, "recordId");
         String initialState = stringFrom(payload, "initialState");
-        notificationRepository.save(InAppNotification.create(
-                event.getOrgId(),
-                actorId,
-                "Workflow started",
-                "A workflow has been started. Initial state: " + initialState,
+        notificationRepository.save(InAppNotification.create(event.getOrgId(), actorId,
+                "Workflow started", "A workflow has been started. Initial state: " + initialState,
                 "/records/" + recordId));
     }
 
@@ -36,23 +33,18 @@ public class InAppDeliveryService {
         String recordId = stringFrom(payload, "recordId");
         String fromState = stringFrom(payload, "fromState");
         String toState = stringFrom(payload, "toState");
-        notificationRepository.save(InAppNotification.create(
-                event.getOrgId(),
-                actorId,
-                "Workflow state changed",
-                "Workflow transitioned from '" + fromState + "' to '" + toState + "'",
-                "/records/" + recordId));
+        notificationRepository
+                .save(InAppNotification.create(event.getOrgId(), actorId, "Workflow state changed",
+                        "Workflow transitioned from '" + fromState + "' to '" + toState + "'",
+                        "/records/" + recordId));
     }
 
     public void notifyEscalated(EventOutbox event, Map<String, Object> payload) {
         UUID escalatedTo = uuidFrom(payload, "escalatedTo");
         String taskId = stringFrom(payload, "taskId");
-        notificationRepository.save(InAppNotification.create(
-                event.getOrgId(),
-                escalatedTo,
-                "Task escalated to you",
-                "A workflow task has been escalated to you.",
-                "/tasks/" + taskId));
+        notificationRepository.save(
+                InAppNotification.create(event.getOrgId(), escalatedTo, "Task escalated to you",
+                        "A workflow task has been escalated to you.", "/tasks/" + taskId));
     }
 
     private static String stringFrom(Map<String, Object> payload, String key) {

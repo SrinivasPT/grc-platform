@@ -22,9 +22,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class EscalationSchedulerTest {
 
-    @Mock WorkflowTaskRepository taskRepo;
-    @Mock EventOutboxRepository outboxRepo;
-    @Mock EscalationManagerResolver managerResolver;
+    @Mock
+    WorkflowTaskRepository taskRepo;
+    @Mock
+    EventOutboxRepository outboxRepo;
+    @Mock
+    EscalationManagerResolver managerResolver;
 
     EscalationScheduler scheduler;
     UUID orgId;
@@ -47,10 +50,8 @@ class EscalationSchedulerTest {
 
         scheduler.escalateOverdueTasks();
 
-        verify(taskRepo).save(argThat(t ->
-                managerId.equals(((WorkflowTask) t).getAssignedTo())
-                && "escalated".equals(((WorkflowTask) t).getStatus())
-        ));
+        verify(taskRepo).save(argThat(t -> managerId.equals(((WorkflowTask) t).getAssignedTo())
+                && "escalated".equals(((WorkflowTask) t).getStatus())));
         verify(outboxRepo).save(any());
     }
 

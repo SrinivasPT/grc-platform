@@ -31,11 +31,10 @@ import org.slf4j.LoggerFactory;
 /**
  * State machine implementation for workflow execution.
  *
- * Rules:
- * - Transitions are validated against WorkflowDefinition config before execution.
- * - Optimistic lock on workflow_instances.version prevents parallel completion race.
- * - All side effects (notifications, tasks) are published to event_outbox — never called directly.
- * - org_id is resolved from the existing WorkflowInstance — never passed directly.
+ * Rules: - Transitions are validated against WorkflowDefinition config before execution. -
+ * Optimistic lock on workflow_instances.version prevents parallel completion race. - All side
+ * effects (notifications, tasks) are published to event_outbox — never called directly. - org_id is
+ * resolved from the existing WorkflowInstance — never passed directly.
  */
 public class WorkflowEngine implements WorkflowService {
 
@@ -51,10 +50,8 @@ public class WorkflowEngine implements WorkflowService {
 
     public WorkflowEngine(WorkflowDefinitionRepository definitionRepository,
             WorkflowInstanceRepository instanceRepository,
-            WorkflowHistoryRepository historyRepository,
-            WorkflowTaskRepository taskRepository,
-            EventOutboxRepository outboxRepository,
-            WorkflowConfigParser configParser,
+            WorkflowHistoryRepository historyRepository, WorkflowTaskRepository taskRepository,
+            EventOutboxRepository outboxRepository, WorkflowConfigParser configParser,
             WorkflowOutboxPublisher outboxPublisher) {
         this.definitionRepository = definitionRepository;
         this.instanceRepository = instanceRepository;
@@ -69,9 +66,10 @@ public class WorkflowEngine implements WorkflowService {
     @Transactional
     public WorkflowInstanceDto start(StartWorkflowCommand command) {
         UUID orgId = SessionContextHolder.SESSION.get().orgId();
-        WorkflowDefinition definition = definitionRepository
-                .findActiveByApplicationId(orgId, command.applicationId())
-                .orElseThrow(() -> new RecordNotFoundException("WorkflowDefinition", command.applicationId()));
+        WorkflowDefinition definition =
+                definitionRepository.findActiveByApplicationId(orgId, command.applicationId())
+                        .orElseThrow(() -> new RecordNotFoundException("WorkflowDefinition",
+                                command.applicationId()));
 
         WorkflowConfig config = configParser.parse(definition.getConfig());
 
@@ -90,17 +88,19 @@ public class WorkflowEngine implements WorkflowService {
     @Override
     @Transactional
     public WorkflowInstanceDto transition(TransitionCommand command) {
-        WorkflowInstance instance = instanceRepository.findById(command.instanceId())
-                .orElseThrow(() -> new RecordNotFoundException("WorkflowInstance", command.instanceId()));
+        WorkflowInstance instance = instanceRepository.findById(command.instanceId()).orElseThrow(
+                () -> new RecordNotFoundException("WorkflowInstance", command.instanceId()));
 
         WorkflowDefinition definition = definitionRepository.findById(instance.getDefinitionId())
-                .orElseThrow(() -> new RecordNotFoundException("WorkflowDefinition", instance.getDefinitionId()));
+                .orElseThrow(() -> new RecordNotFoundException("WorkflowDefinition",
+                        instance.getDefinitionId()));
 
         WorkflowConfig config = configParser.parse(definition.getConfig());
-        TransitionConfig transition = resolveTransition(config, instance.getCurrentState(),
-                command.transitionKey());
+        TransitionConfig transition =
+                resolveTransition(config, instance.getCurrentState(), command.transitionKey());
 
-        if (transition.requireComment() && (command.comment() == null || command.comment().isBlank())) {
+        if (transition.requireComment()
+                && (command.comment() == null || command.comment().isBlank())) {
             throw new WorkflowTransitionException(
                     "Transition '" + command.transitionKey() + "' requires a comment");
         }
@@ -108,8 +108,8 @@ public class WorkflowEngine implements WorkflowService {
         String targetState = transition.toState();
         String newStatus = isTerminalState(config, targetState) ? "completed" : "active";
 
-        int updated = instanceRepository.updateStateIfVersion(
-                instance.getId(), targetState, newStatus, instance.getVersion());
+        int updated = instanceRepository.updateStateIfVersion(instance.getId(), targetState,
+                newStatus, instance.getVersion());
         if (updated == 0) {
             throw new WorkflowConcurrentModificationException(instance.getId());
         }
@@ -126,9 +126,7 @@ public class WorkflowEngine implements WorkflowService {
 
     @Override
     public WorkflowInstanceDto findByRecordId(UUID orgId, UUID recordId) {
-        return instanceRepository.findByRecordId(orgId, recordId)
-                .map(this::toDto)
-                .orElse(null);
+        return instanceRepository.findByRecordId(orgId, recordId).map(this::toDto).orElse(null);
     }
 
     // ---- private helpers ----
@@ -141,9 +139,8 @@ public class WorkflowEngine implements WorkflowService {
                     "Unknown transition key: '" + transitionKey + "'");
         }
         if (!transition.fromStates().contains(currentState)) {
-            throw new WorkflowTransitionException(
-                    "Transition '" + transitionKey + "' is not allowed from state '" + currentState
-                            + "'");
+            throw new WorkflowTransitionException("Transition '" + transitionKey
+                    + "' is not allowed from state '" + currentState + "'");
         }
         return transition;
     }
@@ -173,17 +170,15 @@ public class WorkflowEngine implements WorkflowService {
     private void createTasksForActions(WorkflowInstance instance, TransitionConfig transition,
             UUID actorId) {
         if (transition.onEnterActions() == null) return;
-        List<WorkflowTask> tasks = transition.onEnterActions().stream()
-                .filter(a -> "create_task".equals(a.type()))
-                .map(action -> buildTask(instance, action))
-                .toList();
+        List<WorkflowTask> tasks =
+                transition.onEnterActions().stream().filter(a -> "create_task".equals(a.type()))
+                        .map(action -> buildTask(instance, action)).toList();
         if (!tasks.isEmpty()) {
             taskRepository.saveAll(tasks);
         }
     }
 
-    private WorkflowTask buildTask(WorkflowInstance instance,
-            WorkflowConfig.ActionConfig action) {
+    private WorkflowTask buildTask(WorkflowInstance instance, WorkflowConfig.ActionConfig action) {
         WorkflowTask task = new WorkflowTask();
         task.setOrgId(instance.getOrgId());
         task.setInstanceId(instance.getId());
@@ -193,13 +188,8 @@ public class WorkflowEngine implements WorkflowService {
     }
 
     private WorkflowInstanceDto toDto(WorkflowInstance instance) {
-        return new WorkflowInstanceDto(
-                instance.getId(),
-                instance.getRecordId(),
-                instance.getDefinitionId(),
-                instance.getCurrentState(),
-                instance.getStatus(),
-                instance.getEnteredStateAt(),
-                instance.getVersion());
+        return new WorkflowInstanceDto(instance.getId(), instance.getRecordId(),
+                instance.getDefinitionId(), instance.getCurrentState(), instance.getStatus(),
+                instance.getEnteredStateAt(), instance.getVersion());
     }
 }
