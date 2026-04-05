@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Users table -->
+    <changeSet id="V20260405_002_init-user-schema-01" author="grc-platform" context="main">
+        <createTable tableName="users">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_users_org"
+                             references="organizations(id)"/>
+            </column>
+            <column name="username" type="NVARCHAR(150)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="NVARCHAR(320)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="display_name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="NVARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="keycloak_subject" type="NVARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="users" indexName="ix_users_org_username" unique="true">
+            <column name="org_id"/>
+            <column name="username"/>
+        </createIndex>
+        <createIndex tableName="users" indexName="ix_users_org_email" unique="true">
+            <column name="org_id"/>
+            <column name="email"/>
+        </createIndex>
+        <createIndex tableName="users" indexName="ix_users_keycloak_subject">
+            <column name="keycloak_subject"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="users" indexName="ix_users_org_username"/>
+            <dropIndex tableName="users" indexName="ix_users_org_email"/>
+            <dropIndex tableName="users" indexName="ix_users_keycloak_subject"/>
+            <dropTable tableName="users"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Roles table -->
+    <changeSet id="V20260405_002_init-user-schema-02" author="grc-platform" context="main">
+        <createTable tableName="roles">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_roles_org"
+                             references="organizations(id)"/>
+            </column>
+            <column name="name" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="NVARCHAR(500)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="role_version" type="INT" defaultValueNumeric="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="roles" indexName="ix_roles_org_name" unique="true">
+            <column name="org_id"/>
+            <column name="name"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="roles" indexName="ix_roles_org_name"/>
+            <dropTable tableName="roles"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Role permissions -->
+    <changeSet id="V20260405_002_init-user-schema-03" author="grc-platform" context="main">
+        <createTable tableName="role_permissions">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_role_permissions_role"
+                             references="roles(id)"/>
+            </column>
+            <column name="resource_type" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="action" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="role_permissions" indexName="ix_role_permissions_role">
+            <column name="role_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="role_permissions" indexName="ix_role_permissions_role"/>
+            <dropTable tableName="role_permissions"/>
+        </rollback>
+    </changeSet>
+
+    <!-- User roles (join) -->
+    <changeSet id="V20260405_002_init-user-schema-04" author="grc-platform" context="main">
+        <createTable tableName="user_roles">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_user_roles_user"
+                             references="users(id)"/>
+            </column>
+            <column name="role_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_user_roles_role"
+                             references="roles(id)"/>
+            </column>
+            <column name="assigned_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="user_roles" indexName="ix_user_roles_user_role" unique="true">
+            <column name="user_id"/>
+            <column name="role_id"/>
+        </createIndex>
+        <createIndex tableName="user_roles" indexName="ix_user_roles_org">
+            <column name="org_id"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="user_roles" indexName="ix_user_roles_user_role"/>
+            <dropIndex tableName="user_roles" indexName="ix_user_roles_org"/>
+            <dropTable tableName="user_roles"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

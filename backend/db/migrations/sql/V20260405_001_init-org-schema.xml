@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Organizations table — the tenant root. No org_id FK (this IS the org) -->
+    <changeSet id="V20260405_001_init-org-schema-01" author="grc-platform" context="main">
+        <createTable tableName="organizations">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="NVARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="NVARCHAR(50)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="status" type="NVARCHAR(20)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="organizations"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Org settings — key/value config per org -->
+    <changeSet id="V20260405_001_init-org-schema-02" author="grc-platform" context="main">
+        <createTable tableName="org_settings">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"
+                             foreignKeyName="fk_org_settings_org"
+                             references="organizations(id)"/>
+            </column>
+            <column name="setting_key" type="NVARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="setting_value" type="NVARCHAR(MAX)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="org_settings" indexName="ix_org_settings_org_key" unique="true">
+            <column name="org_id"/>
+            <column name="setting_key"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="org_settings" indexName="ix_org_settings_org_key"/>
+            <dropTable tableName="org_settings"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Per-org SEQUENCE for audit hash chain (ADR-002) -->
+    <changeSet id="V20260405_001_init-org-schema-03" author="grc-platform" context="main">
+        <sql>
+            IF NOT EXISTS (SELECT 1 FROM sys.sequences WHERE name = 'seq_audit_org_monotonic')
+            BEGIN
+                CREATE SEQUENCE dbo.seq_audit_org_monotonic
+                    AS BIGINT
+                    START WITH 1
+                    INCREMENT BY 1
+                    NO CYCLE;
+            END
+        </sql>
+        <rollback>
+            <sql>DROP SEQUENCE IF EXISTS dbo.seq_audit_org_monotonic;</sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

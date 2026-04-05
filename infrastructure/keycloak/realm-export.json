@@ -1,0 +1,63 @@
+{
+  "id": "grc-platform",
+  "realm": "grc-platform",
+  "displayName": "GRC Platform",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 30,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "grc-web",
+      "name": "GRC Platform Web",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": [
+        "http://localhost:3000/*",
+        "https://${KEYCLOAK_HOSTNAME}/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000",
+        "+"
+      ],
+      "defaultScopes": ["openid", "profile", "email", "roles"]
+    },
+    {
+      "clientId": "grc-api",
+      "name": "GRC Platform API (service account)",
+      "enabled": true,
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "secret": "${KEYCLOAK_CLIENT_SECRET}",
+      "defaultScopes": ["openid"]
+    }
+  ],
+  "roles": {
+    "realm": [
+      { "name": "grc-admin", "description": "Full platform administrator" },
+      { "name": "grc-analyst", "description": "GRC analyst — read/write on assigned modules" },
+      { "name": "grc-viewer", "description": "Read-only access to assigned records" },
+      { "name": "grc-auditor", "description": "Read-only access including audit log" }
+    ]
+  },
+  "users": [],
+  "identityProviders": [],
+  "components": {}
+}

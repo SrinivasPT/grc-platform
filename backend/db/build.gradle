@@ -1,0 +1,29 @@
+plugins {
+    id 'org.liquibase.gradle'
+}
+
+dependencies {
+    liquibaseRuntime 'org.liquibase:liquibase-core:4.28.0'
+    liquibaseRuntime 'com.microsoft.sqlserver:mssql-jdbc:12.6.1.jre11'
+    liquibaseRuntime 'info.picocli:picocli:4.7.5'
+}
+
+liquibase {
+    activities {
+        main {
+            changelogFile 'migrations/changelog-master.xml'
+            url System.getenv('GRC_DB_URL') ?: 'jdbc:sqlserver://localhost:1433;databaseName=grcplatform;encrypt=true;trustServerCertificate=true'
+            username System.getenv('GRC_DB_USER') ?: 'sa'
+            password System.getenv('GRC_DB_PASSWORD') ?: System.getenv('SQLSERVER_SA_PASSWORD')
+            contexts 'main'
+        }
+        test {
+            changelogFile 'migrations/changelog-master.xml'
+            url System.getenv('GRC_DB_URL') ?: 'jdbc:sqlserver://localhost:1433;databaseName=grcplatform;encrypt=true;trustServerCertificate=true'
+            username System.getenv('GRC_DB_USER') ?: 'sa'
+            password System.getenv('GRC_DB_PASSWORD') ?: System.getenv('SQLSERVER_SA_PASSWORD')
+            contexts 'main,test'
+        }
+    }
+    runList = 'main'
+}

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Enable SQL Server Change Tracking on tables that feed the Neo4j projection worker.
+         Change Tracking is already enabled at the database level (infrastructure/sqlserver/init/01-init-db.sql).
+         These changesets enable it at the table level for the initially created tables. -->
+
+    <changeSet id="V20260405_003_enable-change-tracking-01" author="grc-platform" context="main">
+        <sql>
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.change_tracking_tables
+                WHERE object_id = OBJECT_ID('dbo.organizations')
+            )
+            BEGIN
+                ALTER TABLE dbo.organizations
+                ENABLE CHANGE_TRACKING
+                WITH (TRACK_COLUMNS_UPDATED = OFF);
+            END
+        </sql>
+        <rollback>
+            <sql>
+                IF EXISTS (
+                    SELECT 1 FROM sys.change_tracking_tables
+                    WHERE object_id = OBJECT_ID('dbo.organizations')
+                )
+                BEGIN
+                    ALTER TABLE dbo.organizations DISABLE CHANGE_TRACKING;
+                END
+            </sql>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="V20260405_003_enable-change-tracking-02" author="grc-platform" context="main">
+        <sql>
+            IF NOT EXISTS (
+                SELECT 1 FROM sys.change_tracking_tables
+                WHERE object_id = OBJECT_ID('dbo.users')
+            )
+            BEGIN
+                ALTER TABLE dbo.users
+                ENABLE CHANGE_TRACKING
+                WITH (TRACK_COLUMNS_UPDATED = OFF);
+            END
+        </sql>
+        <rollback>
+            <sql>
+                IF EXISTS (
+                    SELECT 1 FROM sys.change_tracking_tables
+                    WHERE object_id = OBJECT_ID('dbo.users')
+                )
+                BEGIN
+                    ALTER TABLE dbo.users DISABLE CHANGE_TRACKING;
+                END
+            </sql>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

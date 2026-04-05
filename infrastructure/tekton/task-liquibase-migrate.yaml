@@ -1,0 +1,80 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-liquibase-migrate
+  namespace: grc-platform-ci
+  labels:
+    app.kubernetes.io/part-of: grc-platform
+spec:
+  description: Run Liquibase migrations and validate changelog XML.
+  params:
+    - name: db-url
+      description: JDBC connection URL for the target database
+      type: string
+    - name: contexts
+      description: Liquibase contexts to run (e.g., "main" or "main,test")
+      type: string
+      default: main
+  workspaces:
+    - name: source
+      description: Cloned source repository
+    - name: gradle-cache
+      description: Gradle dependency cache
+  steps:
+    - name: validate
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+        - name: GRC_DB_URL
+          value: $(params.db-url)
+        - name: GRC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: grc-db-credentials
+              key: username
+        - name: GRC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grc-db-credentials
+              key: password
+      script: |
+        ./gradlew :db:liquibaseValidate --no-daemon --console=plain
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "512Mi"
+        limits:
+          cpu: "500m"
+          memory: "1Gi"
+
+    - name: migrate
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+        - name: GRC_DB_URL
+          value: $(params.db-url)
+        - name: GRC_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: grc-db-credentials
+              key: username
+        - name: GRC_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: grc-db-credentials
+              key: password
+      script: |
+        ./gradlew :db:liquibaseUpdate \
+          -PliquibaseCommandValue=$(params.contexts) \
+          --no-daemon --console=plain
+      resources:
+        requests:
+          cpu: "250m"
+          memory: "512Mi"
+        limits:
+          cpu: "500m"
+          memory: "1Gi"

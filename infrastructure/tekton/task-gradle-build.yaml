@@ -1,0 +1,66 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-gradle-build
+  namespace: grc-platform-ci
+  labels:
+    app.kubernetes.io/part-of: grc-platform
+spec:
+  description: Compile all Gradle submodules and run unit tests.
+  params:
+    - name: git-url
+      description: Source repository URL
+      type: string
+    - name: git-revision
+      description: Git revision to check out
+      type: string
+      default: main
+  workspaces:
+    - name: source
+      description: Cloned source repository
+    - name: gradle-cache
+      description: Gradle dependency cache
+  resources:
+    requests:
+      cpu: "2"
+      memory: "2Gi"
+    limits:
+      cpu: "4"
+      memory: "4Gi"
+  steps:
+    - name: clone
+      image: alpine/git:latest
+      script: |
+        git clone $(params.git-url) $(workspaces.source.path)
+        cd $(workspaces.source.path)
+        git checkout $(params.git-revision)
+
+    - name: build-and-unit-test
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+      script: |
+        ./gradlew build -x integrationTest \
+          --no-daemon \
+          --console=plain \
+          --build-cache
+      resources:
+        requests:
+          cpu: "2"
+          memory: "2Gi"
+        limits:
+          cpu: "4"
+          memory: "4Gi"
+
+    - name: verify-no-spring-boot-in-core
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+      script: |
+        ./gradlew :platform-core:dependencies --no-daemon --console=plain | grep -i "spring-boot" && \
+          (echo "FAIL: platform-core must not depend on Spring Boot" && exit 1) || \
+          echo "PASS: platform-core has no Spring Boot dependency"

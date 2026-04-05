@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!--
+        TEST SEED DATA — context: test
+        Never runs in production. Provides known-ID test fixtures for integration tests.
+
+        Well-known test org UUID: 00000000-0000-0000-0000-000000000001
+        Well-known test users:
+          admin:   00000000-0000-0000-0000-000000000011
+          analyst: 00000000-0000-0000-0000-000000000012
+          viewer:  00000000-0000-0000-0000-000000000013
+    -->
+
+    <changeSet id="V20260405_T001_seed-test-org-01" author="grc-platform" context="test">
+        <insert tableName="organizations">
+            <column name="id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="name" value="Test Organization"/>
+            <column name="code" value="TEST_ORG"/>
+            <column name="status" value="ACTIVE"/>
+        </insert>
+        <rollback>
+            <delete tableName="organizations">
+                <where>id = '00000000-0000-0000-0000-000000000001'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="V20260405_T001_seed-test-org-02" author="grc-platform" context="test">
+        <!-- Seed roles -->
+        <insert tableName="roles">
+            <column name="id" value="00000000-0000-0000-0000-000000000021"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="name" value="grc-admin"/>
+            <column name="description" value="Test admin role"/>
+            <column name="role_version" valueNumeric="1"/>
+        </insert>
+        <insert tableName="roles">
+            <column name="id" value="00000000-0000-0000-0000-000000000022"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="name" value="grc-analyst"/>
+            <column name="description" value="Test analyst role"/>
+            <column name="role_version" valueNumeric="1"/>
+        </insert>
+        <insert tableName="roles">
+            <column name="id" value="00000000-0000-0000-0000-000000000023"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="name" value="grc-viewer"/>
+            <column name="description" value="Test viewer role"/>
+            <column name="role_version" valueNumeric="1"/>
+        </insert>
+        <rollback>
+            <delete tableName="roles">
+                <where>org_id = '00000000-0000-0000-0000-000000000001'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="V20260405_T001_seed-test-org-03" author="grc-platform" context="test">
+        <!-- Seed users -->
+        <insert tableName="users">
+            <column name="id" value="00000000-0000-0000-0000-000000000011"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="username" value="test.admin"/>
+            <column name="email" value="test.admin@testorg.local"/>
+            <column name="display_name" value="Test Admin"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="keycloak_subject" value="test-admin-kc-sub"/>
+        </insert>
+        <insert tableName="users">
+            <column name="id" value="00000000-0000-0000-0000-000000000012"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="username" value="test.analyst"/>
+            <column name="email" value="test.analyst@testorg.local"/>
+            <column name="display_name" value="Test Analyst"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="keycloak_subject" value="test-analyst-kc-sub"/>
+        </insert>
+        <insert tableName="users">
+            <column name="id" value="00000000-0000-0000-0000-000000000013"/>
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="username" value="test.viewer"/>
+            <column name="email" value="test.viewer@testorg.local"/>
+            <column name="display_name" value="Test Viewer"/>
+            <column name="status" value="ACTIVE"/>
+            <column name="keycloak_subject" value="test-viewer-kc-sub"/>
+        </insert>
+        <rollback>
+            <delete tableName="users">
+                <where>org_id = '00000000-0000-0000-0000-000000000001'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="V20260405_T001_seed-test-org-04" author="grc-platform" context="test">
+        <!-- Assign roles to users -->
+        <insert tableName="user_roles">
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="user_id" value="00000000-0000-0000-0000-000000000011"/>
+            <column name="role_id" value="00000000-0000-0000-0000-000000000021"/>
+        </insert>
+        <insert tableName="user_roles">
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="user_id" value="00000000-0000-0000-0000-000000000012"/>
+            <column name="role_id" value="00000000-0000-0000-0000-000000000022"/>
+        </insert>
+        <insert tableName="user_roles">
+            <column name="org_id" value="00000000-0000-0000-0000-000000000001"/>
+            <column name="user_id" value="00000000-0000-0000-0000-000000000013"/>
+            <column name="role_id" value="00000000-0000-0000-0000-000000000023"/>
+        </insert>
+        <rollback>
+            <delete tableName="user_roles">
+                <where>org_id = '00000000-0000-0000-0000-000000000001'</where>
+            </delete>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

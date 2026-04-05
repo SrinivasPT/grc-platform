@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: grc-platform
+
+  datasource:
+    url: ${GRC_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=grcplatform;encrypt=true;trustServerCertificate=true}
+    username: ${GRC_DB_USER:sa}
+    password: ${GRC_DB_PASSWORD:${SQLSERVER_SA_PASSWORD:}}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # NEVER create/update — Liquibase manages schema
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+        format_sql: false
+
+  liquibase:
+    change-log: classpath:db/migrations/changelog-master.xml
+    contexts: main
+    enabled: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8080/realms/grc-platform}
+
+  graphql:
+    graphiql:
+      enabled: false   # Disabled in production; enable per-environment via override
+    path: /graphql
+    schema:
+      printer:
+        enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+server:
+  port: 8090
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+    connection-timeout: 30s
+
+logging:
+  level:
+    com.grcplatform: INFO
+    org.springframework.security: WARN

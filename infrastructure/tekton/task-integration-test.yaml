@@ -1,0 +1,47 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-integration-test
+  namespace: grc-platform-ci
+  labels:
+    app.kubernetes.io/part-of: grc-platform
+spec:
+  description: Run Testcontainers integration tests (SQL Server + Neo4j in-process).
+  params:
+    - name: git-revision
+      description: Git revision being tested
+      type: string
+      default: main
+  workspaces:
+    - name: source
+      description: Cloned source repository
+    - name: gradle-cache
+      description: Gradle dependency cache
+  steps:
+    - name: integration-test
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+        - name: TESTCONTAINERS_RYUK_DISABLED
+          value: "false"
+      volumeMounts:
+        - name: docker-sock
+          mountPath: /var/run/docker.sock
+      script: |
+        ./gradlew integrationTest \
+          --no-daemon \
+          --console=plain \
+          --build-cache
+      resources:
+        requests:
+          cpu: "2"
+          memory: "4Gi"
+        limits:
+          cpu: "4"
+          memory: "8Gi"
+  volumes:
+    - name: docker-sock
+      hostPath:
+        path: /var/run/docker.sock

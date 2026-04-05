@@ -1,0 +1,35 @@
+// platform-core: zero Spring Boot dependency — pure Java 21 domain module
+dependencies {
+    // Persistence annotations (Jakarta EE — no Spring Boot runtime required)
+    implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+    implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+    implementation 'jakarta.transaction:jakarta.transaction-api:2.0.1'
+
+    // Logging facade only
+    implementation 'org.slf4j:slf4j-api:2.0.13'
+
+    // Jackson for outbox event serialization (no polymorphic typing allowed)
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.17.1'
+    implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.17.1'
+
+    // Test
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.11.0'
+    testImplementation 'org.assertj:assertj-core:3.26.0'
+    testImplementation 'org.mockito:mockito-core:5.12.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.12.0'
+    testRuntimeOnly 'ch.qos.logback:logback-classic:1.5.6'
+}
+
+// Verify no Spring Boot classes are on the compile classpath
+configurations.compileClasspath {
+    resolutionStrategy {
+        eachDependency { details ->
+            if (details.requested.group == 'org.springframework.boot') {
+                throw new GradleException(
+                    "platform-core must not depend on Spring Boot. " +
+                    "Attempted to add: ${details.requested}"
+                )
+            }
+        }
+    }
+}

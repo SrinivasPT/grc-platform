@@ -1,0 +1,40 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.5.0' apply false
+    id 'io.spring.dependency-management' version '1.1.7' apply false
+    id 'org.liquibase.gradle' version '2.2.2' apply false
+}
+
+ext {
+    javaVersion         = JavaVersion.VERSION_21
+    springBootVersion   = '3.5.0'
+    testcontainersVersion = '1.19.8'
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(21)
+        }
+    }
+
+    compileJava {
+        options.compilerArgs << '--enable-preview'
+    }
+    compileTestJava {
+        options.compilerArgs << '--enable-preview'
+    }
+    test {
+        jvmArgs '--enable-preview'
+        useJUnitPlatform()
+        testLogging {
+            events 'passed', 'skipped', 'failed'
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+}

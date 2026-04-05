@@ -1,0 +1,27 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
+
+rootProject.name = "grc-platform"
+
+include(
+    "platform-core",
+    "platform-api",
+    "platform-workflow",
+    "platform-notification",
+    "platform-graph",
+    "platform-search",
+    "platform-reporting",
+    "platform-integration",
+    "db"
+)

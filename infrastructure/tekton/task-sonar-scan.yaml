@@ -1,0 +1,48 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: task-sonar-scan
+  namespace: grc-platform-ci
+  labels:
+    app.kubernetes.io/part-of: grc-platform
+spec:
+  description: Run SonarQube analysis and enforce quality gate (0 Blocker/Critical, ≥90% service layer coverage).
+  params:
+    - name: sonar-host-url
+      description: SonarQube server URL
+      type: string
+    - name: project-key
+      description: SonarQube project key
+      type: string
+      default: grc-platform
+  workspaces:
+    - name: source
+      description: Cloned source repository
+    - name: gradle-cache
+      description: Gradle dependency cache
+  steps:
+    - name: sonar-scan
+      image: eclipse-temurin:21-jdk
+      workingDir: $(workspaces.source.path)/backend
+      env:
+        - name: GRADLE_USER_HOME
+          value: $(workspaces.gradle-cache.path)
+        - name: SONAR_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: sonar-credentials
+              key: token
+      script: |
+        ./gradlew sonar \
+          -Dsonar.host.url=$(params.sonar-host-url) \
+          -Dsonar.projectKey=$(params.project-key) \
+          -Dsonar.login=${SONAR_TOKEN} \
+          -Dsonar.qualitygate.wait=true \
+          --no-daemon --console=plain
+      resources:
+        requests:
+          cpu: "1"
+          memory: "2Gi"
+        limits:
+          cpu: "2"
+          memory: "4Gi"

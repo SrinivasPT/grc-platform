@@ -1,0 +1,108 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: pipeline-build
+  namespace: grc-platform-ci
+  labels:
+    app.kubernetes.io/part-of: grc-platform
+spec:
+  description: |
+    Full CI pipeline for the GRC Platform.
+    Stages: clone → unit-test → integration-test → quality-gate → migrate → package
+
+  params:
+    - name: git-url
+      description: Repository URL
+      type: string
+    - name: git-revision
+      description: Git revision (branch/tag/SHA)
+      type: string
+      default: main
+    - name: sonar-host-url
+      description: SonarQube server URL
+      type: string
+    - name: db-url
+      description: JDBC URL for migration target
+      type: string
+    - name: image-registry
+      description: Container image registry prefix
+      type: string
+
+  workspaces:
+    - name: source
+    - name: gradle-cache
+
+  tasks:
+    # Stage 1: Compile + unit tests
+    - name: build-and-unit-test
+      taskRef:
+        name: task-gradle-build
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: source
+        - name: gradle-cache
+          workspace: gradle-cache
+
+    # Stage 2: Integration tests (Testcontainers) — after unit tests pass
+    - name: integration-test
+      taskRef:
+        name: task-integration-test
+      runAfter:
+        - build-and-unit-test
+      params:
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: source
+        - name: gradle-cache
+          workspace: gradle-cache
+
+    # Stage 3: SonarQube quality gate — after all tests pass
+    - name: quality-gate
+      taskRef:
+        name: task-sonar-scan
+      runAfter:
+        - integration-test
+      params:
+        - name: sonar-host-url
+          value: $(params.sonar-host-url)
+        - name: project-key
+          value: grc-platform
+      workspaces:
+        - name: source
+          workspace: source
+        - name: gradle-cache
+          workspace: gradle-cache
+
+    # Stage 4: Liquibase migration — after quality gate
+    - name: migrate
+      taskRef:
+        name: task-liquibase-migrate
+      runAfter:
+        - quality-gate
+      params:
+        - name: db-url
+          value: $(params.db-url)
+        - name: contexts
+          value: main
+      workspaces:
+        - name: source
+          workspace: source
+        - name: gradle-cache
+          workspace: gradle-cache
+
+  # Pipeline fails if any task fails — no partial success
+  finally:
+    - name: report-status
+      taskSpec:
+        steps:
+          - name: echo
+            image: alpine:latest
+            script: |
+              echo "Pipeline completed for revision $(params.git-revision)"
