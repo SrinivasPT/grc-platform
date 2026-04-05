@@ -1,63 +1,119 @@
 {
-  "id": "grc-platform",
-  "realm": "grc-platform",
-  "displayName": "GRC Platform",
-  "enabled": true,
-  "sslRequired": "external",
-  "registrationAllowed": false,
-  "loginWithEmailAllowed": true,
-  "duplicateEmailsAllowed": false,
-  "resetPasswordAllowed": false,
-  "editUsernameAllowed": false,
-  "bruteForceProtected": true,
-  "permanentLockout": false,
-  "maxFailureWaitSeconds": 900,
-  "minimumQuickLoginWaitSeconds": 60,
-  "waitIncrementSeconds": 60,
-  "quickLoginCheckMilliSeconds": 1000,
-  "maxDeltaTimeSeconds": 43200,
-  "failureFactor": 30,
-  "accessTokenLifespan": 300,
-  "ssoSessionIdleTimeout": 1800,
-  "ssoSessionMaxLifespan": 36000,
-  "clients": [
-    {
-      "clientId": "grc-web",
-      "name": "GRC Platform Web",
-      "enabled": true,
-      "publicClient": true,
-      "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
-      "redirectUris": [
-        "http://localhost:3000/*",
-        "http://localhost:3000"
-      ],
-      "webOrigins": [
-        "http://localhost:3000",
-        "+"
-      ],
-      "defaultClientScopes": ["openid", "profile", "email", "roles"]
+    "id": "grc-platform",
+    "realm": "grc-platform",
+    "displayName": "GRC Platform",
+    "enabled": true,
+    "sslRequired": "external",
+    "registrationAllowed": false,
+    "loginWithEmailAllowed": true,
+    "duplicateEmailsAllowed": false,
+    "resetPasswordAllowed": false,
+    "editUsernameAllowed": false,
+    "bruteForceProtected": true,
+    "permanentLockout": false,
+    "maxFailureWaitSeconds": 900,
+    "minimumQuickLoginWaitSeconds": 60,
+    "waitIncrementSeconds": 60,
+    "quickLoginCheckMilliSeconds": 1000,
+    "maxDeltaTimeSeconds": 43200,
+    "failureFactor": 30,
+    "accessTokenLifespan": 300,
+    "ssoSessionIdleTimeout": 1800,
+    "ssoSessionMaxLifespan": 36000,
+    "clients": [
+        {
+            "clientId": "grc-web",
+            "name": "GRC Platform Web",
+            "enabled": true,
+            "publicClient": true,
+            "standardFlowEnabled": true,
+            "pkceCodeChallengeMethod": "S256",
+            "directAccessGrantsEnabled": false,
+            "redirectUris": ["http://localhost:3000/*", "http://localhost:3000"],
+            "webOrigins": ["http://localhost:3000", "+"],
+            "defaultClientScopes": ["openid", "profile", "email", "roles", "org"],
+            "protocolMappers": [
+                {
+                    "name": "org-id-mapper",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "false",
+                        "user.attribute": "org_id",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "claim.name": "org_id",
+                        "jsonType.label": "String"
+                    }
+                },
+                {
+                    "name": "role-version-mapper",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "userinfo.token.claim": "false",
+                        "user.attribute": "role_version",
+                        "id.token.claim": "false",
+                        "access.token.claim": "true",
+                        "claim.name": "rv",
+                        "jsonType.label": "int"
+                    }
+                }
+            ]
+        },
+        {
+            "clientId": "grc-api",
+            "name": "GRC Platform API (service account)",
+            "enabled": true,
+            "publicClient": false,
+            "serviceAccountsEnabled": true,
+            "standardFlowEnabled": false,
+            "secret": "${KEYCLOAK_CLIENT_SECRET}",
+            "defaultClientScopes": ["openid"]
+        }
+    ],
+    "clientScopes": [
+        {
+            "name": "org",
+            "protocol": "openid-connect",
+            "description": "Organisation context scope — adds org_id and rv claims",
+            "attributes": {
+                "include.in.token.scope": "true",
+                "display.on.consent.screen": "false"
+            }
+        }
+    ],
+    "roles": {
+        "realm": [
+            { "name": "grc-admin", "description": "Full platform administrator" },
+            {
+                "name": "grc-analyst",
+                "description": "GRC analyst — read/write on assigned modules"
+            },
+            { "name": "grc-viewer", "description": "Read-only access to assigned records" },
+            { "name": "grc-auditor", "description": "Read-only access including audit log" }
+        ]
     },
-    {
-      "clientId": "grc-api",
-      "name": "GRC Platform API (service account)",
-      "enabled": true,
-      "publicClient": false,
-      "serviceAccountsEnabled": true,
-      "standardFlowEnabled": false,
-      "secret": "${KEYCLOAK_CLIENT_SECRET}",
-      "defaultClientScopes": ["openid"]
-    }
-  ],
-  "roles": {
-    "realm": [
-      { "name": "grc-admin", "description": "Full platform administrator" },
-      { "name": "grc-analyst", "description": "GRC analyst — read/write on assigned modules" },
-      { "name": "grc-viewer", "description": "Read-only access to assigned records" },
-      { "name": "grc-auditor", "description": "Read-only access including audit log" }
-    ]
-  },
-  "users": [],
-  "identityProviders": [],
-  "components": {}
+    "identityProviders": [
+        {
+            "alias": "saml-idp",
+            "displayName": "Corporate SSO",
+            "providerId": "saml",
+            "enabled": true,
+            "config": {
+                "entityId": "${SAML_IDP_ENTITY_ID}",
+                "singleSignOnServiceUrl": "${SAML_IDP_SSO_URL}",
+                "nameIDPolicyFormat": "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress",
+                "postBindingResponse": "true",
+                "postBindingAuthnRequest": "true",
+                "validateSignature": "true",
+                "signingCertificate": "${SAML_IDP_SIGNING_CERT}",
+                "mapperType": "role-list-mapper"
+            }
+        }
+    ],
+    "users": [],
+    "components": {}
 }

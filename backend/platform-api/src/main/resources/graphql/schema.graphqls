@@ -1,0 +1,98 @@
+type Query {
+    record(id: ID!): GrcRecord
+    records(applicationId: ID!, page: Int = 0, size: Int = 20): GrcRecordPage!
+    application(id: ID!): Application
+    applications: [Application!]!
+}
+
+type Mutation {
+    createRecord(input: CreateRecordInput!): GrcRecord!
+    updateRecord(input: UpdateRecordInput!): GrcRecord!
+    deleteRecord(id: ID!): Boolean!
+}
+
+# ─── Core domain types ────────────────────────────────────────────────────────
+
+type GrcRecord {
+    id: ID!
+    orgId: ID!
+    applicationId: ID!
+    displayName: String
+    displayNumber: String
+    status: String!
+    workflowState: String
+    computedValues: String
+    createdAt: String!
+    updatedAt: String!
+    version: Int!
+    fieldValues: [FieldValue!]!
+}
+
+type GrcRecordPage {
+    content: [GrcRecordSummary!]!
+    page: Int!
+    pageSize: Int!
+    totalElements: Int!
+    hasNextPage: Boolean!
+}
+
+type GrcRecordSummary {
+    id: ID!
+    displayName: String
+    displayNumber: String
+    status: String!
+    updatedAt: String!
+}
+
+type Application {
+    id: ID!
+    orgId: ID!
+    name: String!
+    internalKey: String!
+    description: String
+    fieldDefinitions: [FieldDefinition!]!
+}
+
+type FieldDefinition {
+    id: ID!
+    applicationId: ID!
+    name: String!
+    fieldKey: String!
+    fieldType: String!
+    required: Boolean!
+    displayOrder: Int!
+}
+
+type FieldValue {
+    fieldDefinitionId: ID!
+    fieldKey: String!
+    fieldType: String!
+    textValue: String
+    numberValue: String
+    dateValue: String
+    referenceIds: [ID!]
+}
+
+# ─── Input types ──────────────────────────────────────────────────────────────
+
+input CreateRecordInput {
+    applicationId: ID!
+    displayName: String
+    fieldValues: [FieldValueInput!]
+    idempotencyKey: String!
+}
+
+input UpdateRecordInput {
+    recordId: ID!
+    displayName: String
+    fieldValues: [FieldValueInput!]
+}
+
+input FieldValueInput {
+    fieldDefinitionId: ID!
+    fieldType: String!
+    textValue: String
+    numberValue: String
+    dateValue: String
+    referenceIds: [ID!]
+}
