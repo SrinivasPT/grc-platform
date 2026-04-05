@@ -2,6 +2,15 @@
 
 Extends the global `.github/copilot-instructions.md`. All global rules apply.
 
+## OS & Shell (Ubuntu Linux)
+
+- All shell scripts use `#!/usr/bin/env bash` and `set -euo pipefail`.
+- When generating terminal commands for this module, **always use bash / Ubuntu syntax**.
+- Do not generate PowerShell or Windows commands unless adding to the `*.ps1` companion script.
+- The canonical dev setup script is `infrastructure/scripts/dev-setup.sh`.
+
+---
+
 ## Purpose
 
 `infrastructure/` contains all deployment and environment configuration:
@@ -28,6 +37,8 @@ Extends the global `.github/copilot-instructions.md`. All global rules apply.
 - Every pipeline step must set `resources.requests` and `resources.limits`.
 - Secrets in Tekton: use `secretKeyRef` — never `value:` with literal credentials.
 - Pipeline parameters: always document with `description` field.
+
+
 - Task results: use `$(results.RESULT_NAME.path)` — never echo to stdout and parse.
 
 ---

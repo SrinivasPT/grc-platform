@@ -1,0 +1,20 @@
+# Local development profile overrides
+# Active when SPRING_PROFILES_ACTIVE=local (set by dev-setup.sh)
+#
+# - Liquibase is disabled here because dev-setup.sh runs migrations
+#   externally via Docker before the app starts (avoids classpath-path
+#   conflicts with the DATABASECHANGELOG table).
+# - GraphiQL is enabled for local development convenience.
+
+spring:
+  liquibase:
+    enabled: false   # Migrations are managed by infrastructure/scripts/dev-setup.sh
+
+  graphql:
+    graphiql:
+      enabled: true  # Enable GraphiQL playground for local development
+
+logging:
+  level:
+    com.grcplatform: DEBUG
+    org.springframework.security: INFO

@@ -9,6 +9,22 @@ See `docs/modules/` for module-level specs. See `docs/adr/` for architecture dec
 
 ---
 
+## 0. Operating System & Shell — Non-Negotiable
+
+- **Development OS is Ubuntu Linux.** All terminal commands, scripts, and file-system interactions use **bash** (`#!/usr/bin/env bash`).
+- **Never use PowerShell, `cmd.exe`, Windows paths, or Windows-specific tools** in generated code, scripts, or instructions unless explicitly creating the `*.ps1` Windows companion script.
+- Use `${VAR}` syntax for shell variables, not `$env:VAR` (PowerShell).
+- Path separators are `/`. Never generate `\` path separators outside the `*.ps1` file.
+- Package installation uses `apt-get` (e.g. `sudo apt-get install -y openjdk-21-jdk`).
+- Use `ss`, `nc`, or `/proc/net/tcp` for port checks — not `netstat` or `Test-NetConnection`.
+- Dev environment scripts live in `infrastructure/scripts/`:
+  - `dev-setup.sh` — canonical Ubuntu/bash setup (run this one)
+  - `dev-teardown.sh` — stop all local services
+  - `dev-setup.ps1` — Windows companion (do not run on Ubuntu)
+  - `dev-teardown.ps1` — Windows companion teardown
+
+---
+
 ## 1. Test-Driven Development (TDD) — Non-Negotiable
 
 - **Always write the failing test first.** No feature code exists without a corresponding failing test.
