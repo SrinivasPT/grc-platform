@@ -1,29 +1,24 @@
 package com.grcplatform.core.context;
 
-import static org.assertj.core.api.Assertions.*;
-
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.util.List;
 import java.util.UUID;
-
 import org.junit.jupiter.api.Test;
 
-import main.java.com.grcplatform.core.context.SessionContext;
-import main.java.com.grcplatform.core.context.SessionContextHolder;
-
+@SuppressWarnings("preview")
 class SessionContextHolderTest {
 
     @Test
     void current_whenNotBound_throwsIllegalState() {
-        assertThatThrownBy(SessionContextHolder::current)
-                .isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(SessionContextHolder::current).isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("SessionContext is not bound");
     }
 
     @Test
     void current_whenBound_returnsContext() {
-        SessionContext context = SessionContext.of(
-                UUID.randomUUID(), UUID.randomUUID(), "test.user",
-                List.of("grc-analyst"), 1);
+        SessionContext context = SessionContext.of(UUID.randomUUID(), UUID.randomUUID(),
+                "test.user", List.of("grc-analyst"), 1);
 
         ScopedValue.where(SessionContextHolder.SESSION, context).run(() -> {
             SessionContext retrieved = SessionContextHolder.current();
@@ -35,9 +30,8 @@ class SessionContextHolderTest {
 
     @Test
     void sessionContext_roles_areImmutable() {
-        SessionContext context = SessionContext.of(
-                UUID.randomUUID(), UUID.randomUUID(), "test.user",
-                List.of("grc-admin"), 1);
+        SessionContext context = SessionContext.of(UUID.randomUUID(), UUID.randomUUID(),
+                "test.user", List.of("grc-admin"), 1);
 
         assertThatThrownBy(() -> context.roles().add("injected-role"))
                 .isInstanceOf(UnsupportedOperationException.class);

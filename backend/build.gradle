@@ -6,7 +6,7 @@ plugins {
 
 ext {
     javaVersion         = JavaVersion.VERSION_21
-    springBootVersion   = '3.5.0'
+    springBootVersion   = '3.5.13'
     testcontainersVersion = '1.19.8'
 }
 
@@ -20,9 +20,11 @@ subprojects {
     }
 
     compileJava {
+        options.release = 21
         options.compilerArgs << '--enable-preview'
     }
     compileTestJava {
+        options.release = 21
         options.compilerArgs << '--enable-preview'
     }
     test {

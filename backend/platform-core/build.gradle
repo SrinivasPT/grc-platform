@@ -25,7 +25,7 @@ configurations.compileClasspath {
     resolutionStrategy {
         eachDependency { details ->
             if (details.requested.group == 'org.springframework.boot') {
-                throw new GradleException(
+                throw new RuntimeException(
                     "platform-core must not depend on Spring Boot. " +
                     "Attempted to add: ${details.requested}"
                 )
