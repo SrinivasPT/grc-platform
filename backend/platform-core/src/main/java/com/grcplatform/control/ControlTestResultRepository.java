@@ -1,6 +1,5 @@
 package com.grcplatform.control;
 
-import com.grcplatform.control.ControlTestResult;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;

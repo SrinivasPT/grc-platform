@@ -1,9 +1,5 @@
 package com.grcplatform.risk;
 
-import com.grcplatform.risk.ComputeRiskScoreCommand;
-import com.grcplatform.risk.RiskScoreDto;
-import com.grcplatform.risk.UpdateResidualScoreCommand;
-
 import java.util.List;
 import java.util.UUID;
 

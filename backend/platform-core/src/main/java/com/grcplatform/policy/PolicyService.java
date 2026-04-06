@@ -1,8 +1,5 @@
 package com.grcplatform.policy;
 
-import com.grcplatform.policy.AcknowledgePolicyCommand;
-import com.grcplatform.policy.PolicyAcknowledgmentDto;
-
 import java.util.List;
 import java.util.UUID;
 

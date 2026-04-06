@@ -3,8 +3,6 @@ package com.grcplatform.control;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
-import com.grcplatform.control.ControlEffectivenessDto;
-import com.grcplatform.control.RecordTestResultCommand;
 
 public interface ControlService {
 

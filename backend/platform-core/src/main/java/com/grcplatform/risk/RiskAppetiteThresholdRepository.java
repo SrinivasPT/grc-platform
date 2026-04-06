@@ -1,7 +1,5 @@
 package com.grcplatform.risk;
 
-import com.grcplatform.risk.RiskAppetiteThreshold;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;

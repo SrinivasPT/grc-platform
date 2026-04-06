@@ -1,18 +1,14 @@
 package com.grcplatform.api.graphql;
 
-import com.grcplatform.policy.AcknowledgePolicyCommand;
-import com.grcplatform.policy.PolicyAcknowledgmentDto;
-import com.grcplatform.policy.PolicyService;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.graphql.data.method.annotation.Argument;
-import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
-
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import com.grcplatform.policy.AcknowledgePolicyCommand;
+import com.grcplatform.policy.PolicyAcknowledgmentDto;
+import com.grcplatform.policy.PolicyService;
 
 @Controller
 public class PolicyResolver {

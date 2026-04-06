@@ -1,11 +1,10 @@
 package com.grcplatform.org;
 
-import java.time.Instant;
 import java.util.UUID;
+import com.grcplatform.core.domain.BaseEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
-import com.grcplatform.core.domain.BaseEntity;
 import lombok.Getter;
 
 /**
