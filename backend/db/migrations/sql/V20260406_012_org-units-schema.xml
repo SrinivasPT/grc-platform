@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Module 26: organization_units — materialized-path hierarchy -->
+    <changeSet id="V20260406_012_orgunit-01" author="grc-platform" context="main">
+        <createTable tableName="organization_units">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_orgunit_org" references="organizations(id)"/>
+            </column>
+            <column name="parent_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="true" foreignKeyName="fk_orgunit_parent" references="organization_units(id)"/>
+            </column>
+            <column name="path" type="NVARCHAR(2000)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="depth" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="unit_type" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="code" type="NVARCHAR(100)"/>
+            <column name="name" type="NVARCHAR(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="NVARCHAR(MAX)"/>
+            <column name="manager_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="true" foreignKeyName="fk_orgunit_manager" references="users(id)"/>
+            </column>
+            <column name="display_order" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="is_active" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="hr_dept_code" type="NVARCHAR(100)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="version" type="BIGINT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addUniqueConstraint tableName="organization_units" columnNames="org_id, code"
+                             constraintName="uq_orgunit_code"/>
+        <createIndex tableName="organization_units" indexName="ix_orgunit_path">
+            <column name="org_id"/>
+            <column name="path"/>
+        </createIndex>
+        <createIndex tableName="organization_units" indexName="ix_orgunit_parent">
+            <column name="parent_id"/>
+        </createIndex>
+        <createIndex tableName="organization_units" indexName="ix_orgunit_manager">
+            <column name="manager_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="organization_units" indexName="ix_orgunit_path"/>
+            <dropIndex tableName="organization_units" indexName="ix_orgunit_parent"/>
+            <dropIndex tableName="organization_units" indexName="ix_orgunit_manager"/>
+            <dropUniqueConstraint tableName="organization_units" constraintName="uq_orgunit_code"/>
+            <dropTable tableName="organization_units"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Module 26: user_org_units — membership table -->
+    <changeSet id="V20260406_012_orgunit-02" author="grc-platform" context="main">
+        <createTable tableName="user_org_units">
+            <column name="user_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_uou_user" references="users(id)"/>
+            </column>
+            <column name="org_unit_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_uou_orgunit" references="organization_units(id)"/>
+            </column>
+            <column name="is_primary" type="BIT" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_override" type="NVARCHAR(100)"/>
+            <column name="joined_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey tableName="user_org_units" columnNames="user_id, org_unit_id"
+                       constraintName="pk_user_org_units"/>
+        <createIndex tableName="user_org_units" indexName="ix_uou_unit">
+            <column name="org_unit_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="user_org_units" indexName="ix_uou_unit"/>
+            <dropTable tableName="user_org_units"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Add org_unit_id to records table (Module 26 §5) -->
+    <changeSet id="V20260406_012_orgunit-03" author="grc-platform" context="main">
+        <addColumn tableName="records">
+            <column name="org_unit_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="true" foreignKeyName="fk_records_orgunit" references="organization_units(id)"/>
+            </column>
+        </addColumn>
+        <createIndex tableName="records" indexName="ix_records_orgunit">
+            <column name="org_unit_id"/>
+            <column name="application_id"/>
+            <column name="org_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="records" indexName="ix_records_orgunit"/>
+            <dropColumn tableName="records" columnName="org_unit_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

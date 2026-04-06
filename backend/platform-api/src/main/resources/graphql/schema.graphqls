@@ -147,3 +147,146 @@ input FieldValueInput {
     dateValue: String
     referenceIds: [ID!]
 }
+
+# ─── Module 26 — Org Hierarchy ────────────────────────────────────────────────
+
+extend type Query {
+    orgUnit(id: ID!): OrgUnit
+    orgUnitTree(rootId: ID): [OrgUnit!]!
+}
+
+extend type Mutation {
+    createOrgUnit(input: CreateOrgUnitInput!): OrgUnit!
+    updateOrgUnit(id: ID!, input: UpdateOrgUnitInput!): OrgUnit!
+    moveOrgUnit(id: ID!, newParentId: ID!): OrgUnit!
+    deactivateOrgUnit(id: ID!, reassignTo: ID): Boolean!
+}
+
+type OrgUnit {
+    id: ID!
+    orgId: ID!
+    parentId: ID
+    path: String!
+    depth: Int!
+    unitType: OrgUnitType!
+    code: String
+    name: String!
+    description: String
+    managerId: ID
+    displayOrder: Int!
+    active: Boolean!
+    children: [OrgUnit!]!
+    ancestors: [OrgUnit!]!
+}
+
+enum OrgUnitType {
+    DIVISION
+    DEPARTMENT
+    BRANCH
+    REGION
+    COST_CENTER
+    SUBSIDIARY
+    TEAM
+}
+
+input CreateOrgUnitInput {
+    name: String!
+    unitType: OrgUnitType!
+    code: String
+    description: String
+    parentId: ID
+    managerId: ID
+    displayOrder: Int
+}
+
+input UpdateOrgUnitInput {
+    name: String
+    description: String
+    managerId: ID
+}
+
+# ─── Module 15 — Policy Management ───────────────────────────────────────────
+
+extend type Query {
+    policyAcknowledgments(policyRecordId: ID!): [PolicyAcknowledgment!]!
+    myPolicyAcknowledgments: [PolicyAcknowledgment!]!
+}
+
+extend type Mutation {
+    acknowledgePolicy(
+        policyRecordId: ID!
+        policyVersion: String!
+        ipAddress: String
+    ): PolicyAcknowledgment!
+}
+
+type PolicyAcknowledgment {
+    id: ID!
+    policyRecordId: ID!
+    userId: ID!
+    acknowledgedAt: String!
+    policyVersion: String!
+    method: String!
+}
+
+# ─── Module 16 — Risk Management ──────────────────────────────────────────────
+
+extend type Query {
+    riskScore(riskRecordId: ID!): RiskScore
+}
+
+extend type Mutation {
+    computeRiskScore(riskRecordId: ID!, likelihood: Float!, impact: Float!): RiskScore!
+    updateResidualRiskScore(
+        riskRecordId: ID!
+        residualLikelihood: Float!
+        residualImpact: Float!
+    ): RiskScore!
+    setRiskAppetite(category: String, thresholdScore: Int!, notes: String): Boolean!
+}
+
+type RiskScore {
+    recordId: ID!
+    likelihoodScore: Float!
+    impactScore: Float!
+    inherentScore: Float!
+    inherentRating: String!
+    residualScore: Float
+    residualRating: String
+    appetiteAlignment: String
+    computedAt: String!
+}
+
+extend type GrcRecord {
+    riskScore: RiskScore
+}
+
+# ─── Module 17 — Control Management ───────────────────────────────────────────
+
+extend type Query {
+    controlEffectiveness(controlRecordId: ID!): ControlEffectiveness
+    controlsForRisk(riskRecordId: ID!): [ID!]!
+}
+
+extend type Mutation {
+    recordControlTestResult(
+        controlRecordId: ID!
+        testDate: String!
+        testResult: String!
+        exceptionsCount: Int!
+        notes: String
+    ): ControlEffectiveness!
+    recomputeControlEffectiveness(controlRecordId: ID!): ControlEffectiveness!
+}
+
+type ControlEffectiveness {
+    controlRecordId: ID!
+    effectivenessScore: Int!
+    effectivenessRating: String!
+    testCount12m: Int!
+    computedAt: String!
+}
+
+extend type GrcRecord {
+    controlEffectiveness: ControlEffectiveness
+}

@@ -9,6 +9,8 @@ import com.grcplatform.core.audit.AuditServiceImpl;
 import com.grcplatform.core.repository.ApplicationRepository;
 import com.grcplatform.core.repository.AuditChainHeadRepository;
 import com.grcplatform.core.repository.AuditLogRepository;
+import com.grcplatform.core.repository.ControlEffectivenessRepository;
+import com.grcplatform.core.repository.ControlTestResultRepository;
 import com.grcplatform.core.repository.EventOutboxRepository;
 import com.grcplatform.core.repository.FieldDefinitionRepository;
 import com.grcplatform.core.repository.FieldValueDateRepository;
@@ -17,7 +19,13 @@ import com.grcplatform.core.repository.FieldValueReferenceRepository;
 import com.grcplatform.core.repository.FieldValueTextRepository;
 import com.grcplatform.core.repository.GrcRecordRepository;
 import com.grcplatform.core.repository.InAppNotificationRepository;
+import com.grcplatform.core.repository.OrgUnitRepository;
+import com.grcplatform.core.repository.PolicyAcknowledgmentRepository;
+import com.grcplatform.core.repository.RecordRelationRepository;
+import com.grcplatform.core.repository.RiskAppetiteThresholdRepository;
+import com.grcplatform.core.repository.RiskScoreRepository;
 import com.grcplatform.core.repository.RuleDefinitionRepository;
+import com.grcplatform.core.repository.UserOrgUnitRepository;
 import com.grcplatform.core.repository.WorkflowDefinitionRepository;
 import com.grcplatform.core.repository.WorkflowHistoryRepository;
 import com.grcplatform.core.repository.WorkflowInstanceRepository;
@@ -26,8 +34,16 @@ import com.grcplatform.core.rule.ComputeRuleEvaluator;
 import com.grcplatform.core.rule.RuleDslParser;
 import com.grcplatform.core.rule.TriggerRuleEvaluator;
 import com.grcplatform.core.rule.ValidateRuleEvaluator;
+import com.grcplatform.core.service.ControlService;
+import com.grcplatform.core.service.ControlServiceImpl;
+import com.grcplatform.core.service.OrgHierarchyService;
+import com.grcplatform.core.service.OrgHierarchyServiceImpl;
+import com.grcplatform.core.service.PolicyService;
+import com.grcplatform.core.service.PolicyServiceImpl;
 import com.grcplatform.core.service.RecordService;
 import com.grcplatform.core.service.RecordServiceImpl;
+import com.grcplatform.core.service.RiskService;
+import com.grcplatform.core.service.RiskServiceImpl;
 import com.grcplatform.core.workflow.WorkflowConfigParser;
 import com.grcplatform.core.workflow.WorkflowService;
 import com.grcplatform.graph.ChangeTrackingRepository;
@@ -115,6 +131,40 @@ public class ServiceConfig {
             WorkflowOutboxPublisher workflowOutboxPublisher) {
         return new WorkflowEngine(definitionRepository, instanceRepository, historyRepository,
                 taskRepository, outboxRepository, workflowConfigParser, workflowOutboxPublisher);
+    }
+
+    // ─── GRC Domain — Org Hierarchy, Policy, Risk, Control ───────────────────
+
+    @Bean
+    public OrgHierarchyService orgHierarchyService(OrgUnitRepository orgUnitRepository,
+            UserOrgUnitRepository userOrgUnitRepository) {
+        return new OrgHierarchyServiceImpl(orgUnitRepository, userOrgUnitRepository);
+    }
+
+    @Bean
+    public EscalationManagerResolver escalationManagerResolver(
+            OrgHierarchyService orgHierarchyService) {
+        return new OrgHierarchyManagerResolver(orgHierarchyService);
+    }
+
+    @Bean
+    public PolicyService policyService(PolicyAcknowledgmentRepository acknowledgmentRepository,
+            AuditService auditService) {
+        return new PolicyServiceImpl(acknowledgmentRepository, auditService);
+    }
+
+    @Bean
+    public RiskService riskService(RiskScoreRepository riskScoreRepository,
+            RiskAppetiteThresholdRepository appetiteRepository, AuditService auditService) {
+        return new RiskServiceImpl(riskScoreRepository, appetiteRepository, auditService);
+    }
+
+    @Bean
+    public ControlService controlService(ControlTestResultRepository testResultRepository,
+            ControlEffectivenessRepository effectivenessRepository,
+            RecordRelationRepository relationRepository, AuditService auditService) {
+        return new ControlServiceImpl(testResultRepository, effectivenessRepository,
+                relationRepository, auditService);
     }
 
     @Bean

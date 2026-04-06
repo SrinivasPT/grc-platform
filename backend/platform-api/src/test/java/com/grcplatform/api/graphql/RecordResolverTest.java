@@ -1,25 +1,30 @@
 package com.grcplatform.api.graphql;
 
-import com.grcplatform.api.graphql.dto.CreateRecordInput;
-import com.grcplatform.api.graphql.dto.UpdateRecordInput;
-import com.grcplatform.core.dto.*;
-import com.grcplatform.core.exception.RecordNotFoundException;
-import com.grcplatform.core.service.RecordService;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import java.time.Instant;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.Instant;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import com.grcplatform.api.graphql.dto.CreateRecordInput;
+import com.grcplatform.api.graphql.dto.UpdateRecordInput;
+import com.grcplatform.core.dto.CreateRecordCommand;
+import com.grcplatform.core.dto.Page;
+import com.grcplatform.core.dto.RecordDto;
+import com.grcplatform.core.dto.RecordListQuery;
+import com.grcplatform.core.dto.RecordSummaryDto;
+import com.grcplatform.core.dto.UpdateRecordCommand;
+import com.grcplatform.core.exception.RecordNotFoundException;
+import com.grcplatform.core.service.RecordService;
 
 @ExtendWith(MockitoExtension.class)
 class RecordResolverTest {
@@ -30,7 +35,7 @@ class RecordResolverTest {
     private RecordResolver resolver;
 
     private static final UUID ORG_ID = UUID.fromString("11111111-1111-1111-1111-111111111111");
-    private static final UUID USER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
+    // private static final UUID USER_ID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID APP_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID RECORD_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 

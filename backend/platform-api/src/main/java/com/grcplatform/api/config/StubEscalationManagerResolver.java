@@ -1,16 +1,13 @@
 package com.grcplatform.api.config;
 
 import java.util.UUID;
-import org.springframework.stereotype.Component;
 import com.grcplatform.workflow.EscalationManagerResolver;
 
 /**
- * Stub implementation of EscalationManagerResolver. Returns null (no manager) for all users until
- * the org-hierarchy module is built in Phase 4. At that point this bean is replaced by
- * OrgHierarchyManagerResolver.
+ * Stub implementation of EscalationManagerResolver. Superseded by OrgHierarchyManagerResolver; kept
+ * for reference only — not registered as a Spring bean.
  */
-@Component
-public class StubEscalationManagerResolver implements EscalationManagerResolver {
+class StubEscalationManagerResolver implements EscalationManagerResolver {
 
     @Override
     public UUID resolveManager(UUID orgId, UUID userId) {

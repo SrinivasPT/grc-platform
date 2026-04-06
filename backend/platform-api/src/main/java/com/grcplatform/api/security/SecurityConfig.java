@@ -21,34 +21,38 @@ import org.springframework.security.web.SecurityFilterChain;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    private final JwtPrincipalConverter jwtPrincipalConverter;
-    private final JwtFreshnessFilter jwtFreshnessFilter;
-    private final IdempotencyFilter idempotencyFilter;
-    private final SessionContextFilter sessionContextFilter;
-    private final RateLimitFilter rateLimitFilter;
+        private final JwtPrincipalConverter jwtPrincipalConverter;
+        private final JwtFreshnessFilter jwtFreshnessFilter;
+        private final IdempotencyFilter idempotencyFilter;
+        private final SessionContextFilter sessionContextFilter;
+        private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtPrincipalConverter jwtPrincipalConverter,
-            JwtFreshnessFilter jwtFreshnessFilter, IdempotencyFilter idempotencyFilter,
-            SessionContextFilter sessionContextFilter, RateLimitFilter rateLimitFilter) {
-        this.jwtPrincipalConverter = jwtPrincipalConverter;
-        this.jwtFreshnessFilter = jwtFreshnessFilter;
-        this.idempotencyFilter = idempotencyFilter;
-        this.sessionContextFilter = sessionContextFilter;
-        this.rateLimitFilter = rateLimitFilter;
-    }
+        public SecurityConfig(JwtPrincipalConverter jwtPrincipalConverter,
+                        JwtFreshnessFilter jwtFreshnessFilter, IdempotencyFilter idempotencyFilter,
+                        SessionContextFilter sessionContextFilter,
+                        RateLimitFilter rateLimitFilter) {
+                this.jwtPrincipalConverter = jwtPrincipalConverter;
+                this.jwtFreshnessFilter = jwtFreshnessFilter;
+                this.idempotencyFilter = idempotencyFilter;
+                this.sessionContextFilter = sessionContextFilter;
+                this.rateLimitFilter = rateLimitFilter;
+        }
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        return http.csrf(csrf -> csrf.disable())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtPrincipalConverter)))
-                .authorizeHttpRequests(
-                        auth -> auth.requestMatchers("/actuator/health", "/actuator/info")
-                                .permitAll().anyRequest().authenticated())
-                .addFilterAfter(jwtFreshnessFilter, BearerTokenAuthenticationFilter.class)
-                .addFilterAfter(idempotencyFilter, JwtFreshnessFilter.class)
-                .addFilterAfter(sessionContextFilter, IdempotencyFilter.class)
-                .addFilterAfter(rateLimitFilter, SessionContextFilter.class).build();
-    }
+        @Bean
+        public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+                return http.csrf(csrf -> csrf.disable()).sessionManagement(
+                                sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                                .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt
+                                                .jwtAuthenticationConverter(jwtPrincipalConverter)))
+                                .authorizeHttpRequests(auth -> auth
+                                                .requestMatchers("/actuator/health",
+                                                                "/actuator/info")
+                                                .permitAll().anyRequest().authenticated())
+                                .addFilterAfter(jwtFreshnessFilter,
+                                                BearerTokenAuthenticationFilter.class)
+                                .addFilterAfter(idempotencyFilter, JwtFreshnessFilter.class)
+                                .addFilterAfter(sessionContextFilter, IdempotencyFilter.class)
+                                .addFilterAfter(rateLimitFilter, SessionContextFilter.class)
+                                .build();
+        }
 }

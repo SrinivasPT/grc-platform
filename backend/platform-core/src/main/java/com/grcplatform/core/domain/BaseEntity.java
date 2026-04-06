@@ -6,8 +6,8 @@ import java.util.UUID;
 import jakarta.persistence.*;
 
 /**
- * Base entity for all GRC domain entities.
- * Provides common fields: id, org_id, created_at, updated_at, version.
+ * Base entity for all GRC domain entities. Provides common fields: id, org_id, created_at,
+ * updated_at, version.
  */
 @MappedSuperclass
 public abstract class BaseEntity {
@@ -44,11 +44,31 @@ public abstract class BaseEntity {
         updatedAt = Instant.now();
     }
 
-    public UUID getId() { return id; }
-    public UUID getOrgId() { return orgId; }
-    public Instant getCreatedAt() { return createdAt; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public Long getVersion() { return version; }
+    public UUID getId() {
+        return id;
+    }
 
-    protected void setOrgId(UUID orgId) { this.orgId = orgId; }
+    public UUID getOrgId() {
+        return orgId;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public Long getVersion() {
+        return version;
+    }
+
+    protected void setId(UUID id) {
+        this.id = id;
+    }
+
+    protected void setOrgId(UUID orgId) {
+        this.orgId = orgId;
+    }
 }

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Module 15: policy_acknowledgments — tracks individual user policy sign-offs -->
+    <changeSet id="V20260406_013_policy-01" author="grc-platform" context="main">
+        <createTable tableName="policy_acknowledgments">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_policyack_org" references="organizations(id)"/>
+            </column>
+            <column name="policy_record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_policyack_record" references="records(id)"/>
+            </column>
+            <column name="user_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_policyack_user" references="users(id)"/>
+            </column>
+            <column name="acknowledged_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="policy_version" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="method" type="NVARCHAR(50)" defaultValue="platform">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ip_address" type="NVARCHAR(50)"/>
+        </createTable>
+        <createIndex tableName="policy_acknowledgments" indexName="ix_policyack_policy">
+            <column name="org_id"/>
+            <column name="policy_record_id"/>
+        </createIndex>
+        <createIndex tableName="policy_acknowledgments" indexName="ix_policyack_user">
+            <column name="org_id"/>
+            <column name="user_id"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="policy_acknowledgments" indexName="ix_policyack_policy"/>
+            <dropIndex tableName="policy_acknowledgments" indexName="ix_policyack_user"/>
+            <dropTable tableName="policy_acknowledgments"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

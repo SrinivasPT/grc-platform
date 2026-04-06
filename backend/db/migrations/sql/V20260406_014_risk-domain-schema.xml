@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <!-- Module 16: risk_scores — computed risk scoring stored alongside the record -->
+    <changeSet id="V20260406_014_risk-01" author="grc-platform" context="main">
+        <createTable tableName="risk_scores">
+            <column name="record_id" type="UNIQUEIDENTIFIER">
+                <constraints primaryKey="true" nullable="false"
+                             foreignKeyName="fk_riskscore_record" references="records(id)"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_riskscore_org" references="organizations(id)"/>
+            </column>
+            <column name="likelihood_score" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="impact_score" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inherent_score" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="inherent_rating" type="NVARCHAR(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="residual_likelihood" type="DECIMAL(5,2)"/>
+            <column name="residual_impact" type="DECIMAL(5,2)"/>
+            <column name="residual_score" type="DECIMAL(5,2)"/>
+            <column name="residual_rating" type="NVARCHAR(50)"/>
+            <column name="appetite_alignment" type="NVARCHAR(50)"/>
+            <column name="computed_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <createIndex tableName="risk_scores" indexName="ix_riskscore_org">
+            <column name="org_id"/>
+            <column name="inherent_score"/>
+        </createIndex>
+        <rollback>
+            <dropIndex tableName="risk_scores" indexName="ix_riskscore_org"/>
+            <dropTable tableName="risk_scores"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Module 16: risk_appetite_thresholds — per-org, per-category risk appetite ceiling -->
+    <changeSet id="V20260406_014_risk-02" author="grc-platform" context="main">
+        <createTable tableName="risk_appetite_thresholds">
+            <column name="id" type="UNIQUEIDENTIFIER" defaultValueComputed="NEWSEQUENTIALID()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_appetite_org" references="organizations(id)"/>
+            </column>
+            <column name="category" type="NVARCHAR(200)"/>
+            <column name="threshold_score" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="critical_multiplier" type="DECIMAL(4,2)" defaultValueNumeric="1.5">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effective_from" type="DATE" defaultValueComputed="GETUTCDATE()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effective_to" type="DATE"/>
+            <column name="created_by" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false" foreignKeyName="fk_appetite_user" references="users(id)"/>
+            </column>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="NVARCHAR(1000)"/>
+        </createTable>
+        <!-- Filtered unique index: only one active row per org+category -->
+        <sql>
+            CREATE UNIQUE INDEX uq_appetite_active
+            ON risk_appetite_thresholds(org_id, category)
+            WHERE effective_to IS NULL;
+        </sql>
+        <rollback>
+            <dropIndex tableName="risk_appetite_thresholds" indexName="uq_appetite_active"/>
+            <dropTable tableName="risk_appetite_thresholds"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

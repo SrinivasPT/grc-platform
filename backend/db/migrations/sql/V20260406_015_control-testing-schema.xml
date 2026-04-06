@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+            http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- ── context_test_results ─────────────────────────────────────────── -->
+    <changeSet id="V20260406_015_001" author="grc-platform" context="main">
+        <createTable tableName="control_test_results">
+            <column name="id" type="UNIQUEIDENTIFIER">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="control_record_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="tester_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_date" type="DATE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_result" type="NVARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="exceptions_count" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="NVARCHAR(MAX)"/>
+            <column name="created_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex indexName="idx_ctrl_test_control_date"
+                     tableName="control_test_results">
+            <column name="org_id"/>
+            <column name="control_record_id"/>
+            <column name="test_date"/>
+        </createIndex>
+
+        <rollback>
+            <dropIndex tableName="control_test_results" indexName="idx_ctrl_test_control_date"/>
+            <dropTable tableName="control_test_results"/>
+        </rollback>
+    </changeSet>
+
+    <!-- ── control_effectiveness_scores ─────────────────────────────────── -->
+    <changeSet id="V20260406_015_002" author="grc-platform" context="main">
+        <createTable tableName="control_effectiveness_scores">
+            <column name="control_record_id" type="UNIQUEIDENTIFIER">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="org_id" type="UNIQUEIDENTIFIER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effectiveness_score" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effectiveness_rating" type="NVARCHAR(30)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="test_count_12m" type="INT" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="computed_at" type="DATETIME2" defaultValueComputed="SYSUTCDATETIME()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="control_effectiveness_scores"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

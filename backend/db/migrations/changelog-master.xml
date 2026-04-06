@@ -33,6 +33,16 @@
     <include file="sql/V20260405_011_graph-sync-schema.xml"
              relativeToChangelogFile="true"/>
 
+    <!-- Phase 4 Tier A: GRC Domain modules (Org Hierarchy, Policy, Risk, Control) -->
+    <include file="sql/V20260406_012_org-units-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260406_013_policy-acknowledgments.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260406_014_risk-domain-schema.xml"
+             relativeToChangelogFile="true"/>
+    <include file="sql/V20260406_015_control-testing-schema.xml"
+             relativeToChangelogFile="true"/>
+
     <!-- Test seed data (context: test — never runs in production) -->
     <include file="sql/V20260405_T001_seed-test-org.xml"
              relativeToChangelogFile="true"/>

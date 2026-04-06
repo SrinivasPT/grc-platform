@@ -55,7 +55,6 @@ public class SessionContextFilter extends OncePerRequestFilter {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private SessionContext buildContext(org.springframework.security.oauth2.jwt.Jwt jwt,
             String orgIdStr) {
         var orgId = UUID.fromString(orgIdStr);
