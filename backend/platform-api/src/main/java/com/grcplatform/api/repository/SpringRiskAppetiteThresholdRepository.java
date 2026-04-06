@@ -6,7 +6,7 @@ import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import com.grcplatform.core.domain.RiskAppetiteThreshold;
+import com.grcplatform.risk.RiskAppetiteThreshold;
 
 interface SpringRiskAppetiteThresholdRepository extends JpaRepository<RiskAppetiteThreshold, UUID> {
 

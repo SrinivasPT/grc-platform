@@ -1,7 +1,8 @@
 package com.grcplatform.api.graphql;
 
-import com.grcplatform.core.dto.PolicyAcknowledgmentDto;
-import com.grcplatform.core.service.PolicyService;
+import com.grcplatform.policy.AcknowledgePolicyCommand;
+import com.grcplatform.policy.PolicyAcknowledgmentDto;
+import com.grcplatform.policy.PolicyService;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -35,6 +36,7 @@ public class PolicyResolver {
     @MutationMapping
     public PolicyAcknowledgmentDto acknowledgePolicy(@Argument UUID policyRecordId,
             @Argument String policyVersion, @Argument String ipAddress) {
-        return policyService.acknowledgePolicy(policyRecordId, policyVersion, ipAddress);
+        return policyService.acknowledgePolicy(
+                new AcknowledgePolicyCommand(policyRecordId, policyVersion, ipAddress));
     }
 }

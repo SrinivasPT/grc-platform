@@ -1,8 +1,10 @@
 package com.grcplatform.api.graphql;
 
-import com.grcplatform.core.dto.RiskScoreDto;
+import com.grcplatform.risk.ComputeRiskScoreCommand;
+import com.grcplatform.risk.RiskScoreDto;
+import com.grcplatform.risk.UpdateResidualScoreCommand;
 import com.grcplatform.core.dto.RecordDto;
-import com.grcplatform.core.service.RiskService;
+import com.grcplatform.risk.RiskService;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -32,13 +34,15 @@ public class RiskResolver {
     @MutationMapping
     public RiskScoreDto computeRiskScore(@Argument UUID riskRecordId,
             @Argument BigDecimal likelihood, @Argument BigDecimal impact) {
-        return riskService.computeAndSaveScore(riskRecordId, likelihood, impact);
+        return riskService
+                .computeAndSaveScore(new ComputeRiskScoreCommand(riskRecordId, likelihood, impact));
     }
 
     @MutationMapping
     public RiskScoreDto updateResidualRiskScore(@Argument UUID riskRecordId,
             @Argument BigDecimal residualLikelihood, @Argument BigDecimal residualImpact) {
-        return riskService.updateResidualScore(riskRecordId, residualLikelihood, residualImpact);
+        return riskService.updateResidualScore(
+                new UpdateResidualScoreCommand(riskRecordId, residualLikelihood, residualImpact));
     }
 
     @MutationMapping

@@ -3,8 +3,8 @@ package com.grcplatform.api.repository;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-import com.grcplatform.core.domain.ControlEffectiveness;
-import com.grcplatform.core.repository.ControlEffectivenessRepository;
+import com.grcplatform.control.ControlEffectiveness;
+import com.grcplatform.control.ControlEffectivenessRepository;
 
 @Repository
 public class ControlEffectivenessRepositoryAdapter implements ControlEffectivenessRepository {

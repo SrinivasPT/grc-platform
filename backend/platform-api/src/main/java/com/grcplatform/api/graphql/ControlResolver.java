@@ -10,9 +10,10 @@ import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
-import com.grcplatform.core.dto.ControlEffectivenessDto;
+import com.grcplatform.control.ControlEffectivenessDto;
+import com.grcplatform.control.ControlService;
+import com.grcplatform.control.RecordTestResultCommand;
 import com.grcplatform.core.dto.RecordDto;
-import com.grcplatform.core.service.ControlService;
 
 @Controller
 public class ControlResolver {
@@ -37,8 +38,8 @@ public class ControlResolver {
     public ControlEffectivenessDto recordControlTestResult(@Argument UUID controlRecordId,
             @Argument String testDate, @Argument String testResult, @Argument int exceptionsCount,
             @Argument String notes) {
-        return controlService.recordTestResult(controlRecordId, LocalDate.parse(testDate),
-                testResult, exceptionsCount, notes);
+        return controlService.recordTestResult(new RecordTestResultCommand(controlRecordId,
+                LocalDate.parse(testDate), testResult, exceptionsCount, notes));
     }
 
     @MutationMapping

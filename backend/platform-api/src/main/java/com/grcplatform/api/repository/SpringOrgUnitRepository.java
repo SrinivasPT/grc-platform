@@ -1,6 +1,6 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.OrganizationUnit;
+import com.grcplatform.org.OrganizationUnit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

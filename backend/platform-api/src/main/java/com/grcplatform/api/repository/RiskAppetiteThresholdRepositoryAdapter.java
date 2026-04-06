@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-import com.grcplatform.core.domain.RiskAppetiteThreshold;
-import com.grcplatform.core.repository.RiskAppetiteThresholdRepository;
+import com.grcplatform.risk.RiskAppetiteThreshold;
+import com.grcplatform.risk.RiskAppetiteThresholdRepository;
 
 @Repository
 public class RiskAppetiteThresholdRepositoryAdapter implements RiskAppetiteThresholdRepository {

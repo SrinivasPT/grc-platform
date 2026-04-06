@@ -1,10 +1,10 @@
 package com.grcplatform.api.graphql;
 
-import com.grcplatform.api.graphql.dto.CreateOrgUnitInput;
-import com.grcplatform.api.graphql.dto.UpdateOrgUnitInput;
-import com.grcplatform.core.dto.CreateOrgUnitCommand;
-import com.grcplatform.core.dto.OrgUnitDto;
-import com.grcplatform.core.service.OrgHierarchyService;
+import com.grcplatform.org.CreateOrgUnitCommand;
+import com.grcplatform.org.MoveOrgUnitCommand;
+import com.grcplatform.org.OrgUnitDto;
+import com.grcplatform.org.OrgHierarchyService;
+import com.grcplatform.org.UpdateOrgUnitCommand;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.BatchMapping;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
@@ -40,21 +40,18 @@ public class OrgHierarchyResolver {
     }
 
     @MutationMapping
-    public OrgUnitDto createOrgUnit(@Argument CreateOrgUnitInput input) {
-        var cmd = new CreateOrgUnitCommand(input.name(), input.unitType(), input.code(),
-                input.description(), input.parentId(), input.managerId(), input.displayOrder());
-        return orgHierarchyService.createUnit(cmd);
+    public OrgUnitDto createOrgUnit(@Argument CreateOrgUnitCommand input) {
+        return orgHierarchyService.createUnit(input);
     }
 
     @MutationMapping
-    public OrgUnitDto updateOrgUnit(@Argument UUID id, @Argument UpdateOrgUnitInput input) {
-        return orgHierarchyService.updateUnit(id, input.name(), input.description(),
-                input.managerId());
+    public OrgUnitDto updateOrgUnit(@Argument UUID id, @Argument UpdateOrgUnitCommand input) {
+        return orgHierarchyService.updateUnit(id, input);
     }
 
     @MutationMapping
     public OrgUnitDto moveOrgUnit(@Argument UUID id, @Argument UUID newParentId) {
-        return orgHierarchyService.moveUnit(id, newParentId);
+        return orgHierarchyService.moveUnit(new MoveOrgUnitCommand(id, newParentId));
     }
 
     @MutationMapping

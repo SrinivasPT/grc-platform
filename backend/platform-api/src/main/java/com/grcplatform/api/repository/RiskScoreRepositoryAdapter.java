@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-import com.grcplatform.core.domain.RiskScore;
-import com.grcplatform.core.repository.RiskScoreRepository;
+import com.grcplatform.risk.RiskScore;
+import com.grcplatform.risk.RiskScoreRepository;
 
 @Repository
 public class RiskScoreRepositoryAdapter implements RiskScoreRepository {

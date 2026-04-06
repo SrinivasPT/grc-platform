@@ -1,7 +1,7 @@
 package com.grcplatform.api.config;
 
 import java.util.UUID;
-import com.grcplatform.core.service.OrgHierarchyService;
+import com.grcplatform.org.OrgHierarchyService;
 import com.grcplatform.workflow.EscalationManagerResolver;
 
 /**

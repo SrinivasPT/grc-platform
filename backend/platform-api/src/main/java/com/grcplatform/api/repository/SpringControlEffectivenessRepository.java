@@ -1,6 +1,6 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.ControlEffectiveness;
+import com.grcplatform.control.ControlEffectiveness;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

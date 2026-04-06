@@ -1,7 +1,7 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.PolicyAcknowledgment;
-import com.grcplatform.core.repository.PolicyAcknowledgmentRepository;
+import com.grcplatform.policy.PolicyAcknowledgment;
+import com.grcplatform.policy.PolicyAcknowledgmentRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;

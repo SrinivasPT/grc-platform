@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.grcplatform.core.domain.RiskScore;
+import com.grcplatform.risk.RiskScore;
 
 interface SpringRiskScoreRepository extends JpaRepository<RiskScore, UUID> {
 

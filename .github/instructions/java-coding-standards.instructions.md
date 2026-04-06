@@ -327,3 +327,42 @@ Before committing, verify none of these exist:
 - [ ] `Collectors.toList()` — use `.toList()`
 - [ ] Javadoc on private helper methods — let the method name speak
 - [ ] `@SuppressWarnings("unchecked")` on a raw cast — use pattern matching or a typed method ref
+- [ ] Private `toDto(Entity e)` inside a service/handler — move `toDto()` onto the entity
+- [ ] `*Input` class that duplicates a `*Command` class — use the command directly as `@Argument`
+- [ ] GRC domain entity/service in `com.grcplatform.core.*` — place in the module slice package
+- [ ] `if (field == null || field.isBlank()) throw ValidationException` inside a handler — use `Validator<C>`
+
+---
+
+## 7. Naming Taxonomy — Identical Across All Layers
+
+Every mutable field that originates in user input **must have the same name** in all four layers:
+
+| Layer                | Convention                   | Example            |
+| -------------------- | ---------------------------- | ------------------ |
+| DB column            | `snake_case`                 | `likelihood_score` |
+| Java entity field    | `camelCase`                  | `likelihoodScore`  |
+| Command record field | `camelCase` (same as entity) | `likelihoodScore`  |
+| GraphQL schema field | `camelCase`                  | `likelihoodScore`  |
+
+Deviations require ADR justification.
+
+System-assigned fields (`id`, `orgId`, `createdAt`, `path`, `depth`, computed scores) are **never** in command records — only in entities and DTOs.
+
+---
+
+## 8. Lombok — Narrow Use
+
+`@Getter` is allowed on JPA entity classes to remove hand-written getters. `@Slf4j` is allowed on service and handler classes for logging. All other Lombok annotations are forbidden.
+
+```java
+// ✅
+@Entity @Table(name = "risk_scores") @Getter
+public class RiskScore { ... }  // no hand-written getters
+
+// ❌ — footguns
+@Data              // mutable equals/hashCode on entities → JPA issues
+@Builder           // no-arg constructor conflict with JPA
+@Value             // use Java records instead
+@RequiredArgsConstructor  // hides constructor in beans; use explicit @Bean in SliceConfig
+```

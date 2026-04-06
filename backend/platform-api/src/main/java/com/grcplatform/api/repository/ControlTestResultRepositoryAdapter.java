@@ -4,8 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Repository;
-import com.grcplatform.core.domain.ControlTestResult;
-import com.grcplatform.core.repository.ControlTestResultRepository;
+import com.grcplatform.control.ControlTestResult;
+import com.grcplatform.control.ControlTestResultRepository;
 
 @Repository
 public class ControlTestResultRepositoryAdapter implements ControlTestResultRepository {

@@ -1,7 +1,7 @@
 package com.grcplatform.api.repository;
 
-import com.grcplatform.core.domain.UserOrgUnit;
-import com.grcplatform.core.repository.UserOrgUnitRepository;
+import com.grcplatform.org.UserOrgUnit;
+import com.grcplatform.org.UserOrgUnitRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
